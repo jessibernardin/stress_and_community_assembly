@@ -1,1 +1,0 @@
-# stress_and_community_assembly

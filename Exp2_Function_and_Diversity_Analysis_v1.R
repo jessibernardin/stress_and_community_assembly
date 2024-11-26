@@ -1,6 +1,6 @@
 #### Community Assembly and Functioning under Environmental Stress ####
 #### Authors: Jessica R. Bernardin, Leonora S. Bittleston ####
-#### last update : October 10, 2024 ####
+#### last update : October 30, 2024 ####
 #### Physiological Functions and Diversity Analysis
 
 #### Load Required Packages ####
@@ -178,6 +178,8 @@ tax.16s.exp2_filt <- subset(tax.16s.exp2.2, row.names(tax.16s.exp2.2) %in% row.n
 asv16s.exp2_filt.t <- t(asv16s.exp2_filt)
 min(rowSums(asv16s.exp2_filt.t)) #min number of reads per sample = 6798
 max(rowSums(asv16s.exp2_filt.t)) #max number of reads per sample = 112126
+mean(rowSums(asv16s.exp2_filt.t))
+
 set.seed(1115)
 asv16s.rt <- rrarefy(asv16s.exp2_filt.t, 6798) ## rarefy at 6798, samples are rows
 asv16s.rt <- asv16s.rt[,colSums(asv16s.rt) > 0] ## remove ASVs no longer present, 397 ASV removed
@@ -227,6 +229,8 @@ ggplot(data=md16s_mix, aes(x=ID, y=richness)) +
   geom_jitter() + ylab("Richness (ASVs)") + theme_classic()+
   ylim(c(0,50))
 
+summary(c(47, 45, 46, 48))
+SE = sd(c(47, 45, 46, 48)) / sqrt(length(c(47, 45, 46, 48)))
 md16s$food <- as.factor(md16s$food)
 md16s$ph <- as.factor(md16s$ph)
 md16s$temperature <- as.factor(md16s$temperature)
@@ -248,23 +252,17 @@ df.summaryrich <- md16s %>%
     richness = mean(richness, na.rm = TRUE))
 df.summaryrich <- na.omit(df.summaryrich)
 
-ggplot(df.summaryrich, aes(day, richness, color = temperature, shape=food)) +
-  geom_jitter(size=3)+facet_wrap(~ph, nrow=1)+
-  geom_line(aes(group = treatment_combo), position = position_dodge(0.3), width = 2) +
-  geom_errorbar(aes(ymin = richness-sd, ymax = richness+sd), position = position_dodge(0.3), width = 2)+
-  scale_color_manual(values=c("#1f5776", "#c83126"))+
-  theme_bw() +
-  theme(panel.grid.major = element_blank(),panel.grid.minor = element_blank()) +
-  theme(legend.position="none")
-
 df.summaryrich$ph <- factor(df.summaryrich$ph, levels=c("3", "4", "5.6"))
-ggplot(df.summaryrich, aes(day, richness, color = temperature, shape=food)) +
-  geom_jitter(size=3, alpha=.9)+facet_wrap(~ph, nrow=1)+
-  geom_line(aes(group = treatment_combo), position = position_dodge(0.3), width = 0.2) +
-  geom_errorbar(aes(ymin = richness-sd, ymax = richness+sd), position = position_dodge(0.3), width = 0.2)+
-  theme_bw()+scale_color_manual(values=c("#1f5776", "#c83126"))+
-  theme(panel.grid.major = element_blank(),panel.grid.minor = element_blank()) +
-  theme(legend.position="none")+ylim(c(0,100))
+ggplot(df.summaryrich, aes(day, richness, color = temperature, shape = food)) +
+  geom_jitter(size = 3, alpha = 0.9, position = position_dodge(0.3)) +
+  facet_wrap(~ph, nrow = 1) +
+  geom_line(aes(group = treatment_combo), position = position_dodge(0.3)) +
+  geom_errorbar(aes(ymin = richness - sd, ymax = richness + sd), position = position_dodge(0.3), width = 0.2) +
+  theme_bw() +
+  scale_color_manual(values = c("#1f5776", "#c83126")) +
+  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank()) +
+  theme(legend.position = "none") +
+  ylim(c(0, 100))
 
 
 #model for alpha diversity
@@ -319,11 +317,12 @@ ggplot(mens.pred, aes(x=x, y=predicted, color=facet, shape=panel))+geom_point()+
 
 
 ###richness
-mrich2 <- brm(richness ~ ph*food*temperature+ day,data=md16s, family=Gamma(link = "log"),iter = 5000, chains = 4, cores = 4,control = list(adapt_delta = 0.999, stepsize = 0.001, max_treedepth=20))
-saveRDS(mrich2, "RDS/Exp2_richness_tubes.RDS")
-#mrich <- readRDS("RDS/Exp2_richness_tubes.RDS")
+#mrich2 <- brm(richness ~ ph*food*temperature+ day,data=md16s, family=Gamma(link = "log"),iter = 5000, chains = 4, cores = 4,control = list(adapt_delta = 0.999, stepsize = 0.001, max_treedepth=20))
+#saveRDS(mrich2, "RDS/Exp2_richness_tubes.RDS")
+mrich <- readRDS("RDS/Exp2_richness_tubes.RDS")
 
-rich.pred <- ggpredict(mrich2, terms = c("food", "temperature", "ph"))
+
+rich.pred <- ggpredict(mrich, terms = c("food", "temperature", "ph"))
 rich.pred$facet <- factor(rich.pred$facet, levels = c("3", "4", "5.6"))
 plot(rich.pred, facets = TRUE, line.size=2, dot.size=4, dodge=1) +
   scale_color_manual(values=c("#1f5776", "#c83126"))
@@ -335,27 +334,18 @@ ggplot(rich.pred, aes(x = x, y = predicted, shape = x, color = group)) +
   theme_bw() +
   theme(panel.grid.major = element_blank(),panel.grid.minor = element_blank()) +
   geom_errorbar(aes(ymin = conf.low, ymax = conf.high), width = 0, size=2,position = position_dodge(width = .7))+
-  theme(legend.position="none")
+  theme(legend.position="none")+ylim(c(0, 75))
 
 
-rich2.pred <- ggpredict(mrich2, terms = c("day", "ph", "temperature", "food"))
-rich2.pred$x <- as.numeric(as.character(rich2.pred$x))
-
-rich2.pred$group <- factor(rich2.pred$group, levels = c("3", "4", "5.6"))
-ggplot(rich2.pred, aes(x=x, y=predicted, color=facet, shape=panel))+geom_point()+
-  facet_wrap(~group)+theme_classic()+geom_line()+
-  scale_color_manual(values=c("#1f5776", "#c83126"))+ylim(c(0,100))
-
-
-posteriormrich <- mcmc_intervals_data(mrich2, 
+posteriormrich <- mcmc_intervals_data(mrich, 
                                      prob_outer=0.95,
-                                     prob=0.5)
+                                     prob=0.95)
 
 posteriormrich$nonzero <- NA
 posteriormrich$nonzero[posteriormrich$ll>0 & posteriormrich$hh>0] <- "nonzero"
 posteriormrich$nonzero[posteriormrich$ll<0 & posteriormrich$hh<0] <- "nonzero"
 posteriormrich$nonzero[is.na(posteriormrich$nonzero)] <- "zero"
-posteriormrich<- posteriormrich[1:12,]
+posteriormrich<- posteriormrich[1:13,]
 
 ggplot(posteriormrich, aes(x = parameter,
                           shape=nonzero)) +
@@ -633,7 +623,7 @@ prot.dist <- vegdist(meta_mantel$protease,method="euclidean", na.rm=TRUE)
 
 chit.wu.man <- mantel(wu.dist.16s.tubes_noNA,chit.dist, method = "spearman", permutations=999)
 chit.wu.man
-#Mantel statistic r: 0.2459  
+#Mantel statistic r: 0.2459  -1 strong negative, +1 strong positivie, 0 none
 #Significance: 0.001
 
 
@@ -665,10 +655,7 @@ anova(wu.bd.day)# p=0.0003871 ***, significant differences in the dispersion bet
 
 #### PERMANOVA for categorical variables (factors) ####
 # set number of permutations
-perm <- how(nperm = 999)
-#specify a random variable day).
-setBlocks(perm) <- with(data_merge2, day)
-ad.16s.treat2 <- adonis2(wu.dist.16s.tubes ~ temperature*ph*food + day, data=data_merge2, permutations = perm)#"margin"
+ad.16s.treat2 <- adonis2(wu.dist.16s.tubes ~ temperature*ph*food + day, data=data_merge2)#"margin"
 ad.16s.treat2
 write.csv(ad.16s.treat2, "output_files/exp2_beta_inter.csv")  
 
@@ -690,12 +677,17 @@ Exp2.physeqmix <- prune_taxa(nonzero_rows, Exp2.physeqmix)
 
 treemix <- phy_tree(Exp2.physeqmix)
 
+
 # Plot the phylogenetic tree using ggtree
 ggtree(treemix) +
   geom_tiplab() +
   theme_tree2()
 
 tax_table_df <- data.frame(tax_table(Exp2.physeqmix))
+length(unique(tax_table_df$Genus))
+length(unique(tax_table_df$Family))
+length(unique(tax_table_df$Phylum))
+
 
 tree_data <- fortify(treemix)
 tree_data <- merge(tree_data, tax_table_df, by.x = "label", by.y = "row.names", all.x = TRUE)
@@ -712,6 +704,30 @@ ggtree(tree_data_asvnames)+
   geom_hilight(data=tree_data_asvnames[1:45,], aes(node=node, fill=Family),
                type = "roundrect")
 
+ggtree(tree_data_asvnames, branch.length = "none")+
+  geom_tiplab(aes(label=ASV,color = Family), align=TRUE) +
+  theme_tree2() + scale_color_discrete(name = "Family")+
+  geom_cladelab(data = tree_data_asvnames,mapping = aes(node = node, label = Family,color = Family), 
+                offset = 1, offset.text=0.5, align=TRUE)+theme(legend.position = "none")+
+  geom_treescale(width = 0.25, offset = 0.5)
+
+
+ggtree(tree_data_asvnames)+
+  geom_tiplab(aes(label=ASV,color = Order)) +
+  theme_tree2() +
+  geom_cladelab(data = tree_data_asvnames,mapping = aes(node = node, label = Order,color = Order), 
+                offset = 1, offset.text=0.5)+theme(legend.position = "none")+
+  geom_hilight(data=tree_data_asvnames[1:45,], aes(node=node, fill=Order),
+               type = "roundrect")
+
+
+ggtree(tree_data_asvnames)+
+  geom_tiplab(aes(label=ASV,color = Class)) +
+  theme_tree2() +
+  geom_cladelab(data = tree_data_asvnames,mapping = aes(node = node, label = Class,color = Class), 
+                offset = 1, offset.text=0.5)+theme(legend.position = "none")+
+  geom_hilight(data=tree_data_asvnames[1:45,], aes(node=node, fill=Class),
+               type = "roundrect")
 
 ggtree(tree_data_asvnames, layout="circular")+
   geom_tiplab(aes(label=ASV,color = Family)) +
@@ -725,7 +741,7 @@ ggtree(tree_data_asvnames, layout="circular")+
 
 
 ##prune to day 57
-Exp2.physeq357 = subset_samples(Exp2.physeq3, day %in% c("15"))
+Exp2.physeq357 = subset_samples(Exp2.physeq3, day %in% c("1"))
 row_sums <- rowSums(otu_table(Exp2.physeq357))
 nonzero_rows <- row_sums != 0
 Exp2.physeq357 <- prune_taxa(nonzero_rows, Exp2.physeq357)
@@ -734,17 +750,16 @@ com <- t(as.data.frame(otu_table(Exp2.physeq3)))
 tree <- phy_tree(Exp2.physeq3)
 Ntip(tree)
 meta <- as.data.frame(sample_data(Exp2.physeq3))
-
+meta$ID <- rownames(meta)
 all(colnames(com) %in% tree$tip.label)
 
 
 ## SES PD
-SESPD <- ses.pd(com, tree, null.model = c( "independentswap"),
-       runs = 999, iterations = 1000, include.root=TRUE)
-#saveRDS(SESPD, "output_files/SES_PD_all.RDS")
-#SESPD <- readRDS("output_files/SES_PD.RDS")
+SESPD <- ses.pd(com, tree, null.model = "taxa.labels",runs = 999)
+saveRDS(SESPD, "RDS/SES_PD_all.RDS")
+SESPD <- readRDS("RDS/SES_PD_all.RDS")
 SESPD$ID <- rownames(SESPD)
-SESPD <- left_join(SESPD, meta.r, by="ID")
+SESPD <- left_join(SESPD, meta, by="ID")
 SESPD$food <- as.factor(SESPD$food)
 SESPD$temperature <- as.factor(SESPD$temperature)
 SESPD$ph <- as.factor(SESPD$ph)
@@ -757,15 +772,55 @@ SESPD <- SESPD %>%
 SESPD <- SESPD %>%
   mutate(temperature = replace(temperature, is.na(temperature), c(22)))
 SESPD$day <- as.numeric(SESPD$day)
-ggplot(SESPD, aes(x=day, y=pd.obs.z, color=temperature, shape=food, group=sample_id))+geom_point()+
+ggplot(SESPD, aes(x=ntaxa, y=pd.obs.z, color=temperature, shape=food, group=sample_id))+geom_point(size=3)+
          theme_classic()+scale_color_manual(values = c("#1f5776", "#c83126"))+
   geom_hline(yintercept=0, linetype="dashed", color="black")+
-  facet_wrap(temperature~ph)+geom_line()+ylim(c(-3.5, 3.5))
+  facet_wrap(~day, nrow=1)+geom_line()+ylim(c(-4, 4))+
+  geom_hline(yintercept = -1.96, linetype="dashed", color="gray")+geom_hline(yintercept = 1.96, linetype="dashed", color="gray")
 
-pd_model <- brm(pd.obs.z ~ temperature + food + ph + day,data=SESPD, iter = 10000, chains = 4, cores = 4)
+
+SESPDdaymix <- subset(SESPD, sample_id =="MIX")
+mean(SESPDdaymix$pd.obs.z)#-2.015556
+sd(SESPDdaymix$pd.obs.z)/sqrt(length(SESPDdaymix$pd.obs.z))# 0.1819155
+
+
+
+
+
+
+SESPDday57 <- subset(SESPD, day =="57")
+
+ggplot(SESPDday57, aes(x=ntaxa, y=pd.obs.z, color=temperature, shape=food, group=sample_id))+geom_point(size=3)+
+  theme_classic()+scale_color_manual(values = c("#1f5776", "#c83126"))+
+  geom_hline(yintercept=0, linetype="dashed", color="black")+
+  facet_wrap(~day, nrow=1)+geom_line()+ylim(c(-4, 4))+
+  geom_hline(yintercept = -1.96, linetype="dashed", color="gray")+geom_hline(yintercept = 1.96, linetype="dashed", color="gray")
+
+SESPDday57$ph <- factor(SESPDday57$ph, levels=c("5.6", "3", "4"))
+
+pd_model <- brm(pd.obs.z ~ temperature * food * ph ,data=SESPDday57, iter = 10000, chains = 4, cores = 4)
+saveRDS(pd_model, "RDS/pd_model.RDS")
+
 mcmc_plot(pd_model, regex_pars="b_",
           prob_outer=0.95,
-          prob=0.95)+theme_classic()
+          prob=0.95)+theme_classic()+scale_color_manual(values="black")
+
+pd.pred <- ggpredict(pd_model, c("food", "temperature", "ph"))
+pd.pred$facet <- factor(pd.pred$facet, levels=c("3", "4", "5.6"))
+
+ggplot(pd.pred, aes(x = x, y = predicted, shape = x, color = group)) +
+  geom_point(size = 5, position = position_dodge(width = .7)) + # Dodging the points
+  facet_wrap(~facet) +
+  scale_color_manual(values = c("#1f5776", "#c83126")) +
+  theme_bw() +
+  theme(panel.grid.major = element_blank(),panel.grid.minor = element_blank()) +
+  geom_errorbar(aes(ymin = conf.low, ymax = conf.high), width = 0, size=2,position = position_dodge(width = .7))+
+  theme(legend.position="none")+ ylab("SES PD")+
+  xlab("Food (g/L)")+ theme(
+    text = element_text(color = "black", size = 16 ))+ylim(c(-4, 4))+
+  geom_hline(yintercept = 0, linetype="dashed")+
+  geom_hline(yintercept = -1.96, linetype="dashed", color="gray")+geom_hline(yintercept = 1.96, linetype="dashed", color="gray")
+
 
 pd.pred1 <- ggpredict(pd_model, "food")
 pd.pred1$treatment <- "food"
@@ -809,16 +864,59 @@ ggplot(pd_melted, mapping = aes(x = x, y = predicted, group=treatment, color=x))
                  position=position_dodge(width = 0.5)) +facet_wrap(~treatment, scales="free_x")+
   theme_classic()+ylab("SES PD")+theme(legend.position="none")+ylim(c(-3.5,3.5))+geom_hline(yintercept = 0, linetype = "dashed", color = "black")
 
+
+posteriorpd <- mcmc_intervals_data(pd_model, 
+                                     prob_outer=0.95,
+                                     prob=0.5)
+
+posteriorpd$nonzero <- NA
+posteriorpd$nonzero[posteriorpd$ll>0 & posteriorpd$hh>0] <- "nonzero"
+posteriorpd$nonzero[posteriorpd$ll<0 & posteriorpd$hh<0] <- "nonzero"
+posteriorpd$nonzero[is.na(posteriorpd$nonzero)] <- "zero"
+posteriorpd<- posteriorpd[1:12,]
+
+ggplot(posteriorpd, aes(x = parameter,
+                          shape=nonzero)) +
+  geom_hline(yintercept = 0, linetype = 3, 
+             size=1, color = "#b0b5b3") +
+  geom_pointrange(aes(ymin = ll, ymax = hh, y = m),
+                  position= position_dodge(width=0.75),
+                  size = 3/4) +
+  scale_shape_manual(values=c(17, 19), 
+                     labels=c("95% CI does\nnot contain zero", 
+                              "95% CI\ncontains zero"))+
+  coord_flip() +
+  xlab(NULL) +
+  ylab("Estimated effect on SESPD")+
+  theme(
+    text = element_text(color = "black", size = 16 ))+
+  theme(panel.background = element_rect(fill = "white", colour = "black"))+
+  theme(legend.position="none")
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 ## SES MPD
 phydist <- cophenetic(tree)
-SESMPD <- ses.mpd(com, phydist, null.model = "independentswap",
+SESMPD <- ses.mpd(com, phydist, null.model = "taxa.labels",
                           abundance.weighted = TRUE, runs = 999)
 saveRDS(SESMPD, "RDS/ses.mpd.resultall.RDS")
 #saveRDS(SESMPD, "RDS/ses.mpd.result.RDS")
-#SESMPD <- readRDS("ses.mpd.result.RDS")
+SESMPD <- readRDS("RDS/ses.mpd.resultall.RDS")
 
 SESMPD$ID <- rownames(SESMPD)
-SESMPD <- left_join(SESMPD, meta.r, by="ID")
+SESMPD <- left_join(SESMPD, meta, by="ID")
 SESMPD$food <- as.factor(SESMPD$food)
 SESMPD$temperature <- as.factor(SESMPD$temperature)
 SESMPD$ph <- as.factor(SESMPD$ph)
@@ -836,16 +934,55 @@ SESMPD$day <- as.numeric(SESMPD$day)
 ggplot(SESMPD, aes(x=day, y=mpd.obs.z, color=temperature, shape=food, group=sample_id))+geom_point()+
   theme_classic()+scale_color_manual(values = c("#1f5776", "#c83126"))+
   geom_hline(yintercept=0, linetype="dashed", color="black")+
-  facet_wrap(temperature~ph)+geom_line()+ylim(c(-3.5, 3.5))
+  facet_wrap(~ph)+geom_line()+ylim(c(-4, 4))+
+  geom_hline(yintercept = -1.96, linetype="dashed", color="gray")+geom_hline(yintercept = 1.96, linetype="dashed", color="gray")
 
 
-ggplot(SESMPD, aes(x=food, y=mpd.obs.z, color=temperature, shape=food))+geom_jitter()+
-  facet_wrap(~ph)+theme_classic()+scale_color_manual(values = c("#1f5776", "#c83126"))
 
-mpd_model <- brm(mpd.obs.z ~ temperature + food + ph +day ,data=SESMPD, iter = 10000, chains = 4, cores = 4)
+ggplot(SESMPD, aes(x=ntaxa, y=mpd.obs.z, color=temperature, shape=food))+geom_jitter(size=3)+
+  facet_wrap(~day, nrow=1)+theme_classic()+
+  scale_color_manual(values = c("#1f5776", "#c83126"))+
+  ylim(c(-4,4))+geom_hline(yintercept = 0, linetype="dashed")+
+  geom_hline(yintercept = -1.96, linetype="dashed", color="gray")+geom_hline(yintercept = 1.96, linetype="dashed", color="gray")
+
+SESMPDdaymix <- subset(SESMPD, sample_id =="MIX")
+mean(SESMPDdaymix$mpd.obs.z)#0.3774597
+sd(SESMPDdaymix$mpd.obs.z)/sqrt(length(SESMPDdaymix$mpd.obs.z))# 0.05695824
+
+
+
+
+SESMPDday57 <- subset(SESMPD, day=="57")
+SESMPDday57$ph <- factor(SESMPDday57$ph, levels=c("5.6", "3", "4"))
+
+mpd_model <- brm(mpd.obs.z ~ temperature * food * ph ,data=SESMPDday57, iter = 10000, chains = 4, cores = 4)
+saveRDS(mpd_model, "mpd_model.RDS")
+
 mcmc_plot(mpd_model, regex_pars="b_",
           prob_outer=0.95,
           prob=0.95)+theme_classic()
+
+
+mpd.pred <- ggpredict(mpd_model, c("food", "temperature", "ph"))
+
+ggplot(mpd.pred, aes(x = x, y = predicted, shape = x, color = group)) +
+  geom_point(size = 5, position = position_dodge(width = .7)) + # Dodging the points
+  facet_wrap(~facet) +
+  scale_color_manual(values = c("#1f5776", "#c83126")) +
+  theme_bw() +
+  theme(panel.grid.major = element_blank(),panel.grid.minor = element_blank()) +
+  geom_errorbar(aes(ymin = conf.low, ymax = conf.high), width = 0, size=2,position = position_dodge(width = .7))+
+  theme(legend.position="none")+ ylab("SES MPD")+
+  xlab("Food (g/L)")+ theme(
+    text = element_text(color = "black", size = 16 ))+ylim(c(-4, 4))+
+  geom_hline(yintercept = 0, linetype="dashed")+
+  geom_hline(yintercept = -1.96, linetype="dashed", color="gray")+geom_hline(yintercept = 1.96, linetype="dashed", color="gray")
+
+
+
+
+
+
 
 mpd.pred1 <- ggpredict(mpd_model, "food")
 mpd.pred1$treatment <- "food"
@@ -889,19 +1026,45 @@ ggplot(mpd_melted, mapping = aes(x = x, y = predicted, group=treatment, color=x)
                  position=position_dodge(width = 0.5)) +facet_wrap(~treatment, scales="free_x")+
   theme_classic()+ylab("SES MPD")+theme(legend.position="none")+ylim(c(-3.5,3.5))+geom_hline(yintercept = 0, linetype = "dashed", color = "black")
 
+posteriormpd <- mcmc_intervals_data(mpd_model, 
+                                   prob_outer=0.95,
+                                   prob=0.5)
 
+posteriormpd$nonzero <- NA
+posteriormpd$nonzero[posteriormpd$ll>0 & posteriormpd$hh>0] <- "nonzero"
+posteriormpd$nonzero[posteriormpd$ll<0 & posteriormpd$hh<0] <- "nonzero"
+posteriormpd$nonzero[is.na(posteriormpd$nonzero)] <- "zero"
+posteriormpd<- posteriormpd[1:12,]
+
+ggplot(posteriormpd, aes(x = parameter,
+                        shape=nonzero)) +
+  geom_hline(yintercept = 0, linetype = 3, 
+             size=1, color = "#b0b5b3") +
+  geom_pointrange(aes(ymin = ll, ymax = hh, y = m),
+                  position= position_dodge(width=0.75),
+                  size = 3/4) +
+  scale_shape_manual(values=c(17, 19), 
+                     labels=c("95% CI does\nnot contain zero", 
+                              "95% CI\ncontains zero"))+
+  coord_flip() +
+  xlab(NULL) +
+  ylab("Estimated effect on SESMPD")+
+  theme(
+    text = element_text(color = "black", size = 16 ))+
+  theme(panel.background = element_rect(fill = "white", colour = "black"))+
+  theme(legend.position="none")
 
 ## SES MNTD
 
-SESMNTD <- ses.mntd(com, phydist, null.model = "independentswap",
+SESMNTD <- ses.mntd(com, phydist, null.model = "taxa.labels",
                            abundance.weighted = TRUE, runs = 999)
 saveRDS(SESMNTD, "RDS/ses.mntd.resultall.RDS")
 
 #saveRDS(SESMNTD, "RDS/ses.mntd.result.RDS")
-#SESMNTD <- readRDS("RDS/ses.mntd.result.RDS")
+SESMNTD <- readRDS("RDS/ses.mntd.resultall.RDS")
 
 SESMNTD$ID <- rownames(SESMNTD)
-SESMNTD <- left_join(SESMNTD, meta.r, by="ID")
+SESMNTD <- left_join(SESMNTD, meta, by="ID")
 SESMNTD$food <- as.factor(SESMNTD$food)
 SESMNTD$temperature <- as.factor(SESMNTD$temperature)
 SESMNTD$ph <- as.factor(SESMNTD$ph)
@@ -920,6 +1083,8 @@ SESMNTD <- SESMNTD %>%
 SESMNTD <- SESMNTD %>%
   mutate(temperature = replace(temperature, is.na(temperature), c(22)))
 SESMNTD$day <- as.numeric(SESMNTD$day)
+
+
 ggplot(SESMNTD, aes(x=day, y=mntd.obs.z, color=temperature, shape=food, group=sample_id))+geom_point()+
   theme_classic()+scale_color_manual(values = c("#1f5776", "#c83126"))+
   geom_hline(yintercept=0, linetype="dashed", color="black")+
@@ -927,18 +1092,58 @@ ggplot(SESMNTD, aes(x=day, y=mntd.obs.z, color=temperature, shape=food, group=sa
 
 
 
+ggplot(SESMNTD, aes(x=ntaxa, y=mntd.obs.z, color=temperature, shape=food))+geom_jitter(size=3)+
+  facet_wrap(~day, nrow=1)+theme_classic()+
+  scale_color_manual(values = c("#1f5776", "#c83126"))+
+  ylim(c(-4,4))+geom_hline(yintercept = 0, linetype="dashed")+
+  geom_hline(yintercept = -1.96, linetype="dashed", color="gray")+geom_hline(yintercept = 1.96, linetype="dashed", color="gray")
+
+
+SESMNTDdaymix <- subset(SESMNTD, sample_id =="MIX")
+mean(SESMNTDdaymix$mntd.obs.z)#-1.347052
+sd(SESMNTDdaymix$mntd.obs.z)/sqrt(length(SESMNTDdaymix$mntd.obs.z))# 0.0851035
 
 
 
+SESMNTDday57 <- subset(SESMNTD, day=="57")
 
-
-
-
-
-mntd_model <- brm(mntd.obs.z ~ temperature + food + ph + (1|day),data=SESMNTD, iter = 10000, chains = 4, cores = 4)
+SESMNTDday57$ph <- factor(SESMNTDday57$ph, levels=c("5.6", "3", "4"))
+mntd_model <- brm(mntd.obs.z ~ temperature * food * ph,data=SESMNTDday57, iter = 10000, chains = 4, cores = 4)
+saveRDS(mntd_model, "mntd_model.RDS")
 mcmc_plot(mntd_model, regex_pars="b_",
           prob_outer=0.95,
           prob=0.95)+theme_classic()
+
+
+mntd.pred <- ggpredict(mntd_model, c("food", "temperature", "ph"))
+
+ggplot(mntd.pred, aes(x = x, y = predicted, shape = x, color = group)) +
+  geom_point(size = 5, position = position_dodge(width = .7)) + # Dodging the points
+  facet_wrap(~facet) +
+  scale_color_manual(values = c("#1f5776", "#c83126")) +
+  theme_bw() +
+  theme(panel.grid.major = element_blank(),panel.grid.minor = element_blank()) +
+  geom_errorbar(aes(ymin = conf.low, ymax = conf.high), width = 0, size=2,position = position_dodge(width = .7))+
+  theme(legend.position="none")+ ylab("SES MNTD")+
+  xlab("Food (g/L)")+ theme(
+    text = element_text(color = "black", size = 16 ))+ylim(c(-4, 4))+
+  geom_hline(yintercept = 0, linetype="dashed")+
+  geom_hline(yintercept = -1.96, linetype="dashed", color="gray")+geom_hline(yintercept = 1.96, linetype="dashed", color="gray")
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 mntd.pred1 <- ggpredict(mntd_model, "food")
 mntd.pred1$treatment <- "food"
 
@@ -980,6 +1185,42 @@ ggplot(mntd_melted, mapping = aes(x = x, y = predicted, group=treatment, color=x
   geom_linerange(data=mntd.pred.all,aes(ymin=conf.low, ymax=conf.high), size=2, color="black",
                  position=position_dodge(width = 0.5)) +facet_wrap(~treatment, scales="free_x")+
   theme_classic()+ylab("SES MNTD")+theme(legend.position="none")+ylim(c(-3.5,3.5))+geom_hline(yintercept = 0, linetype = "dashed", color = "black")
+
+mcmc_plot(mntd_model)
+posteriormntd <- mcmc_intervals_data(mntd_model, 
+                                    prob_outer=0.95,
+                                    prob=0.5)
+
+posteriormntd$nonzero <- NA
+posteriormntd$nonzero[posteriormntd$ll>0 & posteriormntd$hh>0] <- "nonzero"
+posteriormntd$nonzero[posteriormntd$ll<0 & posteriormntd$hh<0] <- "nonzero"
+posteriormntd$nonzero[is.na(posteriormntd$nonzero)] <- "zero"
+posteriormntd<- posteriormntd[1:12,]
+
+ggplot(posteriormntd, aes(x = parameter,
+                         shape=nonzero)) +
+  geom_hline(yintercept = 0, linetype = 3, 
+             size=1, color = "#b0b5b3") +
+  geom_pointrange(aes(ymin = ll, ymax = hh, y = m),
+                  position= position_dodge(width=0.75),
+                  size = 3/4) +
+  scale_shape_manual(values=c(17, 19), 
+                     labels=c("95% CI does\nnot contain zero", 
+                              "95% CI\ncontains zero"))+
+  coord_flip() +
+  xlab(NULL) +
+  ylab("Estimated effect on SESMNTD")+
+  theme(
+    text = element_text(color = "black", size = 16 ))+
+  theme(panel.background = element_rect(fill = "white", colour = "black"))+
+  theme(legend.position="none")
+
+
+
+
+
+
+
 
 #Negative values of SESmpd and SESmntd indicate lower phylogenetic diversity than expected under the assumption of the null model, whereas values greater than zero indicate higher phylogenetic diversity than predicted by the null model.
 
@@ -1531,13 +1772,15 @@ newasv$newname2 <- paste(newasv$new_name, " - ", newasv$Genus)
 
 #### differentially abundant taxa across chitinase activity
 output_chit = ancombc2(data = tse, assay_name = "counts", tax_level = NULL,
-                       fix_formula = "chitinase",
+                       fix_formula = "chitinase+protease",
                        rand_formula = "(1 | day)",
                        p_adj_method = "fdr", pseudo_sens = TRUE,
                        prv_cut = 0.02,#4 tubes in 12 treatment groups at three time points, 144 tubes, so set prvcut to 2% meaning in at least 4 tubes
                        alpha = 0.05, n_cl = 3, verbose = TRUE,
                        global = FALSE, pairwise = FALSE)
 saveRDS(output_chit, "RDS/ancombc_chit.RDS")
+saveRDS(output_chit, "RDS/ancombc_chit_prot.RDS")
+
 output_chit <- readRDS("RDS/ancombc_chit.RDS")
 
 res_prim_chit <- output_chit$res
@@ -1545,27 +1788,78 @@ chit_res_sig <- subset(res_prim_chit, diff_chitinase == "TRUE")
 dim(res_prim_chit) #69 taxa present in at least 2% of the samples
 dim(chit_res_sig)#18 taxa differentially abundant
 
-chit_res_sig_filt <- chit_res_sig[,c(1,3)]
-chit_res_sig_filt_melt<- melt(chit_res_sig_filt)
+chit_res_sig_filt <- chit_res_sig[,c(1,3,5)]
+colnames(chit_res_sig_filt) <- c("ASV", "lfc", "se")
 
-colnames(chit_res_sig_filt_melt)[1] <- "ASV"
-chit_res_sig_filt_melt_names <- left_join(chit_res_sig_filt_melt, newasv, by="ASV")
+
+chit_res_sig_filt_melt_names <- left_join(chit_res_sig_filt, newasv, by="ASV")
 
 chit_res_sig_filt_melt_names <- chit_res_sig_filt_melt_names %>%
-  arrange(value)
+  arrange(lfc)
 taxon_levels <- unique(chit_res_sig_filt_melt_names$newname2)
 chit_res_sig_filt_melt_names$newname2 <- factor(chit_res_sig_filt_melt_names$newname2, levels = taxon_levels)
 
-ggplot(chit_res_sig_filt_melt_names, aes(x = variable, y = newname2, fill = value)) +
-  geom_tile() +
-  scale_fill_gradient2(low = "slategray", mid="white",high = "goldenrod") +  # Adjust color scale as needed
-  theme_minimal()+theme(text = element_text(color = "black", size = 16 ))+
-  xlab("")+ ylab("")
+
+ggplot(chit_res_sig_filt_melt_names, aes(x = lfc, y = newname2)) +
+  geom_point() +
+  xlab("Log Fold Change") +
+  geom_errorbarh(aes(xmin = lfc - se, xmax = lfc + se), height = 0.2) +
+  theme_classic()+geom_vline(xintercept = 0, linetype="dashed")
 
 
 
+#combine them
+chit_res_sig_filt_melt_names$df <- "chitinase"
+prot_res_sig_filt_melt_names$df <- "protease"
+ df <- rbind(chit_res_sig_filt_melt_names, prot_res_sig_filt_melt_names)
 
-#### differentially abundant taxa across protease activity
+ ggplot(df, aes(x = newname2, y = lfc, color = newname2)) +
+   geom_point(shape=1) +
+   ylab("Log Fold Change") +
+   geom_errorbar(aes(ymin = lfc - se, ymax = lfc + se), width = 0.2) +
+   theme_classic() +
+   geom_hline(yintercept = 0, linetype = "dashed")+
+   theme(axis.text.x = element_text(angle = 45, hjust=1))+
+   theme(legend.position="none")+ylim(c(-40, 40))
+ 
+ 
+ 
+ # Primary y-axis plot
+ggplot(chit_res_sig_filt_melt_names, aes(x = newname2, y = lfc)) +
+   geom_point(color = "blue") +
+   geom_errorbar(aes(ymin = lfc - se, ymax = lfc + se), width = 0.2, color = "blue") +
+   geom_hline(yintercept = 0, linetype = "dashed") +
+   ylab("Primary Y-Axis (Log Fold Change)") +
+   theme_classic()+
+   theme(axis.text.x = element_text(angle = 45, hjust=1))+
+   theme(legend.position="none")+ylim(c(-40, 40))
+ 
+ # Secondary y-axis plot
+ggplot(prot_res_sig_filt_melt_names, aes(x = newname2, y = lfc)) +
+   geom_point(color = "red") +
+   geom_errorbar(aes(ymin = lfc - se, ymax = lfc + se), width = 0.2, color = "red") +
+   geom_hline(yintercept = 0, linetype = "dashed") +
+   ylab("Secondary Y-Axis") +
+   theme_classic() +
+   theme(axis.title.y = element_text(color = "red"),
+         axis.text.y = element_text(color = "red"))+
+   theme(axis.text.x = element_text(angle = 45,hjust=1))+
+   theme(legend.position="none")+ylim(c(-0.015, 0.015))
+ 
+ # Combine the two plots
+ combined_plot <- plot_grid(
+   p1, p2, align = "v", nrow = 1, rel_widths = c(0.9, 0.1), axis = "lr"
+ )
+ 
+ # Add secondary axis label
+ secondary_axis <- ggdraw() +
+   draw_plot_label("Secondary Y-Axis (Right)", x = 0.9, y = 0.5, angle = -90, color = "red")
+ 
+ # Overlay the plots and the secondary axis label
+ final_plot <- plot_grid(combined_plot, secondary_axis, ncol = 2, rel_widths = c(0.9, 0.1))
+ 
+ 
+ #### differentially abundant taxa across protease activity
 output_prot = ancombc2(data = tse, assay_name = "counts", tax_level = NULL,
                        fix_formula = "protease",
                        rand_formula = "(1 | day)",
@@ -1575,26 +1869,49 @@ output_prot = ancombc2(data = tse, assay_name = "counts", tax_level = NULL,
                        global = FALSE, pairwise = FALSE)
 
 saveRDS(output_prot, "RDS/ancombc_prot.RDS")
-
+output_prot <- readRDS("RDS/ancombc_prot.RDS")
 res_prim_prot <- output_prot$res
 prot_res_sig <- subset(res_prim_prot, diff_protease == "TRUE")
 dim(res_prim_prot) #69 taxa present in at least 2% of the samples
 dim(prot_res_sig)#17 taxa differentially abundant
 
-prot_res_sig_filt <- prot_res_sig[,c(1,3)]
-prot_res_sig_filt_melt<- melt(prot_res_sig_filt)
-prot_res_sig_filt_melt <- prot_res_sig_filt_melt %>%
-  arrange(value)
-taxon_levels <- unique(prot_res_sig_filt_melt$taxon)
-prot_res_sig_filt_melt$taxon <- factor(prot_res_sig_filt_melt$taxon, levels = taxon_levels)
-colnames(prot_res_sig_filt_melt)[1] <- "ASV"
-prot_res_sig_filt_melt_names <- left_join(prot_res_sig_filt_melt, newasv, by="ASV")
+prot_res_sig_filt <- prot_res_sig[,c(1,3,5)]
+colnames(prot_res_sig_filt) <- c("ASV", "lfc", "se")
 
-ggplot(prot_res_sig_filt_melt_names, aes(x = variable, y = newname2, fill = value)) +
-  geom_tile() +
-  scale_fill_gradient2(low="blue", mid="white",high = "red") +  # Adjust color scale as needed
-  labs(x = "Variable", y = "Taxon", title = "Heatmap") +
-  theme_minimal()
+
+prot_res_sig_filt_melt_names <- left_join(prot_res_sig_filt, newasv, by="ASV")
+
+prot_res_sig_filt_melt_names <- prot_res_sig_filt_melt_names %>%
+  arrange(lfc)
+taxon_levels <- unique(prot_res_sig_filt_melt_names$newname2)
+prot_res_sig_filt_melt_names$newname2 <- factor(prot_res_sig_filt_melt_names$newname2, levels = taxon_levels)
+
+ch_anc <- chit_res_sig_filt_melt_names
+ch_anc$enzyme <- "chitinase"
+pr_anc <- prot_res_sig_filt_melt_names
+pr_anc$enzyme <- "protease"
+
+enz_anc <- rbind(ch_anc, pr_anc)
+
+
+ggplot(ch_anc, aes(x = enzyme, y = newname2, fill = lfc)) +
+  geom_tile(color = "white") +
+  scale_fill_gradient2(low = "blue", mid="white",high = "orange")  +
+  theme_minimal()+theme(text = element_text(color = "black", size = 10 ))+
+  xlab("")+ ylab("")
+
+ggplot(pr_anc, aes(x = enzyme, y = newname2, fill = lfc)) +
+  geom_tile(color = "white") +
+  scale_fill_gradient2(low = "blue", mid="white",high = "orange")  +
+  theme_minimal()+theme(text = element_text(color = "black", size = 10 ))+
+  xlab("")+ ylab("")
+
+
+ggplot(chit_res_sig_filt_melt_names, aes(x = lfc, y = newname2)) +
+  geom_point() +
+  xlab("Log Fold Change") +
+  geom_errorbarh(aes(xmin = lfc - se, xmax = lfc + se), height = 0.2) +
+  theme_classic()+geom_vline(xintercept = 0, linetype="dashed")
 
 #### differentially abundant taxa between treatments
 output_temp = ancombc2(data = tse, assay_name = "counts", tax_level = NULL,
@@ -1632,7 +1949,7 @@ all.filt.name.filt <- all.filt.name[,c(3,4,5,6,9)]
 all.filt.melt <- reshape2::melt(all.filt.name.filt, id.vars = "newname2")
 ggplot(all.filt.melt, aes(x = variable, y = newname2, fill = value)) +
   geom_tile(color = "white") +
-  scale_fill_gradient(low = "white", high = "black") +
+  scale_fill_gradient2(low="yellow",mid = "white", high = "black") +
   labs(title = "Heatmap of Taxa vs Variables", x = "Variables", y = "Taxa") +
   theme_minimal() +
   theme(axis.text.x = element_text(angle = 45, hjust = 1))
@@ -1649,7 +1966,7 @@ temp.filt.melt$newname2 <- factor(temp.filt.melt$newname2, levels = unique(temp.
 ggplot(temp.filt.melt, aes(x = variable, y = newname2, fill = value)) +
   geom_tile(color = "white") +
   scale_fill_gradient2(low = "#063648", mid="white",high = "#A33232")  +
-  theme_minimal()+theme(text = element_text(color = "black", size = 16 ))+
+  theme_minimal()+theme(text = element_text(color = "black", size = 10 ))+
   xlab("")+ ylab("")
 
 ##pH
@@ -1666,7 +1983,7 @@ ggplot(ph.filt.melt, aes(x = variable, y = newname2, fill = value)) +
   geom_tile(color = "white") +
   scale_fill_gradient2(high = "#CA64A3", mid="white",low = "#301934") +
   labs(title = "Heatmap of Taxa vs Variables", x = "Variables", y = "Taxa") +
-  theme_minimal()+theme(text = element_text(color = "black", size = 16 ))+
+  theme_minimal()+theme(text = element_text(color = "black", size = 10 ))+
   xlab("")+ ylab("")
 
 ##food
@@ -2203,12 +2520,208 @@ write_csv(eco.tubes.pw.all, "ecoplate_tubes_pw_ph.csv")
 #  3 5.6 vs 3  1 0.55225694 12.229011 0.1647471   0.001      0.003   *
 
 #### PROCRUSTES ####
-dim(eco.all.tubes)#96
-sample_ids <- unique(eco.all.tubes$sample_id)
+dim(eco_all)#96
+sample_ids <- unique(eco_all$sample_id)
 length(sample_ids) #48
 
-meta_pro <- subset(meta, container == "tube")
+meta_pro <- subset(meta)
 meta_pro <- subset(meta_pro, day %in% c("1", "57"))
+
+meta_pro_filt <- meta_pro
+meta_pro_filt$id <- rownames(meta_pro_filt)
+meta_pro_filt$wk <- NA
+meta_pro_filt$wk[meta_pro_filt$day == 1] <- 1  
+meta_pro_filt$wk[meta_pro_filt$day == 57] <- 8 
+meta_pro_filt <- meta_pro_filt[,c(2, 16, 17)]
+eco_pro_all <- left_join(eco_all, meta_pro_filt, by=c("sample_id", "wk"))
+
+rownames(eco_pro_all) <- eco_pro_all$id
+eco_pro_filt <- eco_pro_all[,c(1:31)]
+
+#format ASV data
+asv_pro <- asv16s.rt
+#rownames(meta_pro) <- meta_pro[,1]
+asv_pro_filt <- subset(asv_pro, row.names(asv_pro) %in% rownames(meta_pro))
+dim(asv_pro_filt) #96
+
+rownames(asv_pro_filt) == rownames(meta_pro) #not in order
+
+#fix order
+rownames_df1 <- rownames(adpro)
+asv_pro_filt <- asv_pro_filt[rownames_df1, ]
+rownames(asv_pro_filt) == rownames(meta_pro)#now in order
+
+eco_pro_filt <- eco_pro_filt[rownames_df1, ]
+rownames(asv_pro_filt) == rownames(eco_pro_filt)#now in order
+#asv, meta, and eco all in same order
+
+adpro<- as.data.frame(sample_data(pruned_physeq))
+
+filtered_physeq <- subset_samples(Exp2.tubes.nomix.physeq3, day %in% c(1, 57))
+eco_sample_ids <- rownames(eco_pro_filt)
+ordered_physeq <- prune_samples(eco_sample_ids, filtered_physeq)
+pruned_physeq <- prune_taxa(taxa_sums(ordered_physeq) > 0, ordered_physeq)
+
+
+wu.asv <- distance(pruned_physeq, method = "wUniFrac")
+
+mds.eco <- metaMDS(eco_pro_filt)
+mds.asv <- metaMDS(wu.asv)
+
+procrustes_result2 <- protest( mds.asv,mds.eco, scale=TRUE)
+residuals_scaled <- sqrt(rowSums((scores(procrustes_result2$X) - scores(procrustes_result2$Yrot))^2))
+residuals_scaled <- melt(residuals_scaled)
+residuals_scaled$id <- rownames(residuals_scaled)
+meta_proc <- meta_pro
+meta_proc$id <- rownames(meta_proc)
+residuals_scaled_met <- left_join(residuals_scaled, meta_proc, by="id")
+plot(procrustes_result2)
+residuals_scaled_met$ph <- factor(residuals_scaled_met$ph, levels=c("3", "4", "5.6"))
+residuals_scaled_met$temp <- factor(residuals_scaled_met$temp, levels=c("22", "37"))
+residuals_scaled_met$food <- factor(residuals_scaled_met$food, levels=c("3", "6"))
+
+a<- ggplot(residuals_scaled_met, aes(x=day, y=value, fill=day, group=day))+
+  geom_violin(trim = FALSE, alpha=.8)+theme_classic() + geom_jitter(width = 0.2, height = 0)
+b<-ggplot(residuals_scaled_met, aes(x=ph, y=value, fill=ph, group=ph))+
+  geom_violin(trim = FALSE, alpha=.8)+theme_classic() + geom_jitter(width = 0.2, height = 0)
+c<-ggplot(residuals_scaled_met, aes(x=temp, y=value, fill=temp, group=temp))+
+  geom_violin(trim = FALSE, alpha=.8)+theme_classic() + geom_jitter(width = 0.2, height = 0)
+d<-ggplot(residuals_scaled_met, aes(x=food, y=value, fill=food, group=food))+
+  geom_violin(trim = FALSE, alpha=.8)+theme_classic() + geom_jitter(width = 0.2, height = 0)
+
+
+ggarrange(a, b, c, d)
+
+
+
+pro_result2 <- procrustes(mds.asv,mds.eco, symmetric = TRUE)
+res <- residuals(pro_result2)
+procrustes_result2
+
+
+#Procrustes Sum of Squares (m12 squared):        0.821 
+#Correlation in a symmetric Procrustes rotation: 0.4231 
+#Significance:  0.001 
+plot(procrustes_result2)
+plot(procrustes_result2, kind = 2)
+
+
+Yscore <- procrustes_result2$Y
+Xscore <- procrustes_result2$X
+
+
+pro_final_merge <- as.data.frame(cbind(Yscore, Xscore))
+
+pro_final_merge$sample_id <- rownames(pro_final_merge)
+meta_pro$sample_id <- rownames(meta_pro)
+pro_final_merge_meta <- left_join(pro_final_merge, meta_pro, by="sample_id")
+
+pro_final_merge_meta$temperature <- as.factor(pro_final_merge_meta$temperature)
+pro_final_merge_meta$ph <- as.factor(pro_final_merge_meta$ph)
+pro_final_merge_meta$food <- as.factor(pro_final_merge_meta$food)
+pro_final_merge_meta$treatment_combo <- as.factor(pro_final_merge_meta$treatment_combo)
+
+pro_a <- ggplot(pro_final_merge_meta, aes(group = sample_id, color=temperature)) +
+  geom_point(aes(x = V1, y = V2)) + 
+  geom_point(aes(x = NMDS1, y = NMDS2))+
+  geom_segment(aes(x = V1, y = V2, xend = NMDS1, yend = NMDS2, group = sample_id))+
+  theme_classic()+scale_color_manual(values=c("#1f5776", "#c83126"))+theme(legend.position = "none")
+
+pro_b <-ggplot(pro_final_merge_meta, aes(group = sample_id, color=ph)) +
+  geom_point(aes(x = V1, y = V2)) + 
+  geom_point(aes(x = NMDS1, y = NMDS2))+
+  geom_segment(aes(x = V1, y = V2, xend = NMDS1, yend = NMDS2, group = sample_id))+
+  theme_classic()+scale_color_manual(values=c("#CA64A3","#9A4EAE", "#301934"))+theme(legend.position = "none")
+
+pro_c <-ggplot(pro_final_merge_meta, aes(group = sample_id, color=food)) +
+  geom_point(aes(x = V1, y = V2, alpha=day)) + 
+  geom_point(aes(x = NMDS1, y = NMDS2))+
+  geom_segment(aes(x = V1, y = V2, xend = NMDS1, yend = NMDS2, group = sample_id))+
+  theme_classic()+scale_color_manual(values=c("#90ee90", "#228822"))+theme(legend.position = "none")
+
+ggarrange(pro_a, pro_b, pro_c, nrow=1)
+
+
+     ### residuals
+res <- residuals(pro_result2)
+res_df <- melt(res)
+res_df$id <- rownames(res_df)
+meta_proc <- meta_pro
+meta_proc$id <- rownames(meta_proc)
+res_df_meta <- left_join(res_df, meta_proc, by="id")
+
+res_df_meta$ph <- factor(res_df_meta$ph, levels=c("3", "4", "5.6"))
+res_df_meta$temp <- factor(res_df_meta$temp, levels=c("22", "37"))
+res_df_meta$food <- factor(res_df_meta$food, levels=c("3", "6"))
+
+ggplot(res_df_meta, aes(x=day, y=value, fill=day, group=day))+
+  geom_violin(trim = FALSE, alpha=.8)+theme_classic() + geom_jitter(width = 0.2, height = 0)
+
+ggplot(res_df_meta, aes(x=ph, y=value, fill=ph, group=ph))+
+  geom_violin(trim = FALSE, alpha=.8)+theme_classic() + geom_jitter(width = 0.2, height = 0)+
+  scale_fill_manual(values=c("#CA64A3","#9A4EAE", "#301934"))+
+  facet_wrap(temp~day, nrow=1) +theme(legend.position = "none")
+
+ggplot(res_df_meta, aes(x=day, y=value, color=temp, shape=food))+
+  theme_classic() + geom_jitter(width = 0.2, height = 0)+
+  scale_color_manual(values=c("#1f5776", "#c83126"))+
+  facet_wrap(~ph, nrow=1) +theme(legend.position = "none")
+
+ggplot(res_df_meta, aes(x=food, y=value, fill=food, group=food))+
+  geom_violin(trim = FALSE, alpha=.8)+theme_classic() + geom_jitter(width = 0.2, height = 0)+
+  scale_fill_manual(values=c("#90ee90", "#228822"))+
+  facet_wrap(~day) +theme(legend.position = "none")
+
+ggplot(res_df_meta, aes(x=ph, y=value, fill=ph, group=ph))+
+  geom_violin(trim = FALSE, alpha=.8)+theme_classic() + geom_jitter(width = 0.2, height = 0)+
+  scale_fill_manual(values=c("#CA64A3","#9A4EAE", "#301934"))+
+  facet_wrap(food~day) +theme(legend.position = "none")
+
+res_df_meta$ph <- factor(res_df_meta$ph, levels=c("5.6","3", "4"))
+
+procrustes_glm <- brm(value ~ ph*food*temp+ day,data=res_df_meta, family = Gamma(link = "log"), iter = 10000, chains = 4, cores = 4)
+
+mcmc_plot(procrustes_glm, regex_pars="b_")
+
+posteriorProc <- mcmc_intervals_data(procrustes_glm, 
+                                   prob_outer=0.95,
+                                   prob=0.5)
+
+posteriorProc$nonzero <- NA
+posteriorProc$nonzero[posteriorProc$ll>0 & posteriorProc$hh>0] <- "nonzero"
+posteriorProc$nonzero[posteriorProc$ll<0 & posteriorProc$hh<0] <- "nonzero"
+posteriorProc$nonzero[is.na(posteriorProc$nonzero)] <- "zero"
+posteriorProc<- posteriorProc[1:13,]
+
+ggplot(posteriorProc, aes(x = parameter,
+                        shape=nonzero)) +
+  geom_hline(yintercept = 0, linetype = 3, 
+             size=1, color = "#b0b5b3") +
+  geom_pointrange(aes(ymin = ll, ymax = hh, y = m),
+                  position= position_dodge(width=0.75),
+                  size = 3/4) +
+  scale_shape_manual(values=c(17, 19), 
+                     labels=c("95% CI does\nnot contain zero", 
+                              "95% CI\ncontains zero"))+
+  coord_flip() +
+  xlab(NULL) +
+  ylab("Estimated effect on Residuals")+
+  theme(
+    text = element_text(color = "black", size = 16 ))+
+  theme(panel.background = element_rect(fill = "white", colour = "black"))+
+  theme(legend.position="none")
+
+
+
+
+
+#repeat but just for the final time point
+dim(eco_all)#96
+sample_ids <- unique(eco_all$sample_id)
+length(sample_ids) #48
+
+meta_pro <- subset(meta)
+meta_pro <- subset(meta_pro, day %in% c("57"))
 
 meta_pro_filt <- meta_pro
 meta_pro_filt$id <- rownames(meta_pro_filt)
@@ -2219,13 +2732,15 @@ meta_pro_filt$wk[meta_pro_filt$day == 57] <- 8
 
 meta_pro_filt <- meta_pro_filt[,c(2, 16, 17)]
 
-eco_pro_all <- left_join(eco.all.tubes, meta_pro_filt, by=c("sample_id", "wk"))
-
+eco_pro_all <- left_join(eco_all, meta_pro_filt, by=c("sample_id", "wk"))
+#eco_pro_all <- eco_pro_all[1:48,]
+eco_pro_all <- eco_pro_all[49:96,]
 rownames(eco_pro_all) <- eco_pro_all$id
 eco_pro_filt <- eco_pro_all[,c(1:31)]
 
 #format ASV data
 asv_pro <- asv16s.rt
+#rownames(meta_pro) <- meta_pro[,1]
 asv_pro_filt <- subset(asv_pro, row.names(asv_pro) %in% rownames(meta_pro))
 dim(asv_pro_filt) #96
 
@@ -2240,73 +2755,26 @@ eco_pro_filt <- eco_pro_filt[rownames_df1, ]
 rownames(asv_pro_filt) == rownames(eco_pro_filt)#now in order
 #asv, meta, and eco all in same order
 
-#procrustes analysis
-dist.eco <- vegdist(eco_pro_filt)
-dist.asv <- vegdist(asv_pro_filt)
-mds.eco <- monoMDS(dist.eco)
-mds.asv <- monoMDS(dist.asv)
-procrustes_result2 <- protest(mds.eco,mds.asv, scale=TRUE)
-procrustes_result2
-
-
-#Procrustes Sum of Squares (m12 squared):        0.6582 
-#Correlation in a symmetric Procrustes rotation: 0.5847 
-#Significance:  0.001 
-plot(procrustes_result2)
-
-Yrotscore <- procrustes_result2$Yrot
-Xscore <- procrustes_result2$X
-
-
-
-#repeat but just for the final time point
-dim(eco.all.tubes)#96
-
-meta_prob <- subset(meta, container == "tube")
-meta_prob <- subset(meta_prob, day %in% c("57"))
-
-meta_prob_filt <- meta_prob
-meta_prob_filt$id <- rownames(meta_prob_filt)
-meta_prob_filt <- meta_prob_filt[,c(2, 16)]
-
-eco_pro_allb <- eco.all.tubes
-eco_pro_allb <- subset(eco_pro_allb, wk =="8")
-eco_pro_allb <- left_join(eco_pro_allb, meta_prob_filt, by=c("sample_id"))
-
-rownames(eco_pro_allb) <- eco_pro_allb$id
-eco_pro_allb_filt <- eco_pro_allb[,c(1:31)]
-
-#format ASV data
-asv_prob <- asv16s.rt
-asv_prob_filt <- subset(asv_prob, row.names(asv_prob) %in% rownames(meta_prob_filt))
-dim(asv_prob_filt) #48
-
-rownames(asv_prob_filt) == rownames(meta_prob_filt) #not in order
-
-#fix order
-rownames_df1 <- rownames(meta_prob_filt)
-asv_prob_filt <- asv_prob_filt[rownames_df1, ]
-rownames(asv_prob_filt) == rownames(meta_prob_filt)#now in order
-
-#remove asv that are not present in any sample
-asv_prob_filtered <- asv_prob_filt[,colSums(asv_prob_filt) > 0]#48 464
-
-eco_pro_allb_filt <- eco_pro_allb_filt[rownames_df1, ]
-rownames(asv_prob_filt) == rownames(eco_pro_allb_filt)#now in order
-#asv, meta, and eco all in same order
+asv_pro_filt <- asv_pro_filt[,colSums(asv_pro_filt) >0]
 
 #procrustes analysis
-dist.eco2 <- vegdist(eco_pro_allb_filt)
-dist.asv2 <- vegdist(asv_prob_filt)
+dist.eco2 <- vegdist(eco_pro_filt)
+dist.asv2 <- vegdist(asv_pro_filt)
 mds.eco2 <- monoMDS(dist.eco2)
 mds.asv2 <- monoMDS(dist.asv2)
 procrustes_result3 <- protest(mds.eco2,mds.asv2, scale=TRUE)
 procrustes_result3
+plot(procrustes_result3, kind=2)
+#day57 only
+#Procrustes Sum of Squares (m12 squared):        0.8826 
+#Correlation in a symmetric Procrustes rotation: 0.3427
+#Significance:  0.009
 
 
-#Procrustes Sum of Squares (m12 squared):        0.8624 
-#Correlation in a symmetric Procrustes rotation: 0.371 
-#Significance:  0.004 
+#day1 only
+#Procrustes Sum of Squares (m12 squared):        0.6264 
+#Correlation in a symmetric Procrustes rotation: 0.6112
+#Significance:  0.001
 plot(procrustes_result3)
 
 Yrotscore <- as.data.frame(procrustes_result3$Yrot)
@@ -2332,31 +2800,30 @@ ggplot(pro_final_merge_meta, aes(group = sample_id, shape=food)) +
   theme_classic()+theme(text = element_text(color = "black", size = 16 ))+
   xlab("")+ ylab("")
   
-ggplot(pro_final_merge_meta, aes(group = sample_id, color=ph)) +
+pro_a <- ggplot(pro_final_merge_meta, aes(group = sample_id, color=temperature)) +
   geom_point(aes(x = V1, y = V2)) + 
   geom_point(aes(x = MDS1, y = MDS2))+
   geom_segment(aes(x = V1, y = V2, xend = MDS1, yend = MDS2, group = sample_id))+
-  theme_classic()
+  theme_classic()+scale_color_manual(values=c("#1f5776", "#c83126"))+theme(legend.position = "none")
 
-ggplot(pro_final_merge_meta, aes(group = sample_id, color=food)) +
+pro_b <-ggplot(pro_final_merge_meta, aes(group = sample_id, color=ph)) +
   geom_point(aes(x = V1, y = V2)) + 
   geom_point(aes(x = MDS1, y = MDS2))+
   geom_segment(aes(x = V1, y = V2, xend = MDS1, yend = MDS2, group = sample_id))+
-  theme_classic()
+  theme_classic()+scale_color_manual(values=c("#CA64A3","#9A4EAE", "#301934"))+theme(legend.position = "none")
 
-ggplot(pro_final_merge_meta, aes(group = sample_id, color=treatment_combo)) +
+pro_c <-ggplot(pro_final_merge_meta, aes(group = sample_id, color=food)) +
   geom_point(aes(x = V1, y = V2)) + 
-  geom_point(aes(x = MDS1, y = MDS2, size=2))+
+  geom_point(aes(x = MDS1, y = MDS2))+
   geom_segment(aes(x = V1, y = V2, xend = MDS1, yend = MDS2, group = sample_id))+
-  theme_classic()+facet_wrap(~temperature)
+  theme_classic()+scale_color_manual(values=c("#90ee90", "#228822"))+theme(legend.position = "none")
 
-
-
+ggarrange(pro_a, pro_b, pro_c, nrow=1)
 
 
 #### CHITINASE ####
 #filter metadata
-meta<- read.csv("Exp_2_metadata_all.csv", header=TRUE)
+meta<- read.csv("Exp_2_metadata_tubes.csv", header=TRUE)
 meta_all_tubes <- subset(meta, container =="tube")
 meta_all_tubes$food <- as.factor(meta_all_tubes$food)
 meta_all_tubes$ph <- as.factor(meta_all_tubes$ph)
@@ -2373,17 +2840,15 @@ df.summarychit <- meta_all_tubes %>%
     chitinase = mean(chitinase, na.rm = TRUE))
 df.summarychit <- na.omit(df.summarychit)
 
-ggplot(df.summarychit, aes(day, chitinase, color = temperature, shape=food)) +
-  geom_jitter(size=3, alpha=0.75)+facet_wrap(~ph, nrow=1)+
-  geom_line(aes(group = treatment_combo), position = position_dodge(0.3), width = 0.2) +
-  geom_errorbar(aes(ymin = chitinase-sd, ymax = chitinase+sd), position = position_dodge(0.3), width = 0.2)+
-  theme_bw()+scale_color_manual(values=c("#1f5776", "#c83126"))+
-  theme(panel.grid.major = element_blank(),panel.grid.minor = element_blank()) +
-  theme(legend.position="none")+ylab("Chitinase Activity")+ theme(
-    text = element_text(color = "black", size = 16 )
-  )
-
-
+ggplot(df.summarychit, aes(day, chitinase, color = temperature, shape = food)) +
+  geom_jitter(size = 3, alpha = 0.9, position = position_dodge(0.3)) +
+  facet_wrap(~ph, nrow = 1) +
+  geom_line(aes(group = treatment_combo), position = position_dodge(0.3)) +
+  geom_errorbar(aes(ymin = chitinase - sd, ymax = chitinase + sd), position = position_dodge(0.3), width = 0.2) +
+  theme_bw() +
+  scale_color_manual(values = c("#1f5776", "#c83126")) +
+  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank()) +
+  theme(legend.position = "none") 
 
 
 
@@ -2398,16 +2863,15 @@ df.summaryprot <- meta_all_tubes %>%
     protease = mean(protease, na.rm = TRUE))
 df.summaryprot <- na.omit(df.summaryprot)
 
-ggplot(df.summaryprot, aes(day, protease, color = temperature, shape=food)) +
-  geom_jitter(size=3, alpha=0.75)+facet_wrap(~ph, nrow=1)+
-  geom_line(aes(group = treatment_combo), position = position_dodge(0.3), width = 0.2) +
-  geom_errorbar(aes(ymin = protease-sd, ymax = protease+sd), position = position_dodge(0.3), width = 0.2)+
-  theme_bw()+scale_color_manual(values=c("#1f5776", "#c83126"))+
-  theme(panel.grid.major = element_blank(),panel.grid.minor = element_blank()) +
-  theme(legend.position="none")+ylab("Protease Activity")+ theme(
-    text = element_text(color = "black", size = 16 )
-  )
-
+ggplot(df.summaryprot, aes(day, protease, color = temperature, shape = food)) +
+  geom_jitter(size = 3, alpha = 0.9, position = position_dodge(0.3)) +
+  facet_wrap(~ph, nrow = 1) +
+  geom_line(aes(group = treatment_combo), position = position_dodge(0.3)) +
+  geom_errorbar(aes(ymin = protease - sd, ymax = protease + sd), position = position_dodge(0.3), width = 0.2) +
+  theme_bw() +
+  scale_color_manual(values = c("#1f5776", "#c83126")) +
+  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank()) +
+  theme(legend.position = "none") 
 
 #### RESPIRATION ####
 meta_all_tubes.resp <- meta_all_tubes[complete.cases(meta_all_tubes$respiration_co2_ppm_hr),]
@@ -2419,15 +2883,16 @@ df.summaryresp <- meta_all_tubes.resp %>%
     respiration_co2_ppm_hr = mean(respiration_co2_ppm_hr, na.rm = TRUE))
 df.summaryresp <- na.omit(df.summaryresp)
 
-ggplot(df.summaryresp, aes(day, respiration_co2_ppm_hr, color = temperature, shape=food)) +
-  geom_jitter(size=3, alpha=0.75)+facet_wrap(~ph, nrow=1)+
-  geom_line(aes(group = treatment_combo), position = position_dodge(0.3), width = 0.2) +
-  geom_errorbar(aes(ymin = respiration_co2_ppm_hr-sd, ymax = respiration_co2_ppm_hr+sd), position = position_dodge(0.3), width = 0.2)+
-  theme_bw()+scale_color_manual(values=c("#1f5776", "#c83126"))+
-  theme(panel.grid.major = element_blank(),panel.grid.minor = element_blank()) +
-  theme(legend.position="none")+ylab("Respiration")+ theme(
-    text = element_text(color = "black", size = 16 )
-  )
+
+ggplot(df.summaryresp, aes(day, respiration_co2_ppm_hr, color = temperature, shape = food)) +
+  geom_jitter(size = 3, alpha = 0.9, position = position_dodge(0.3)) +
+  facet_wrap(~ph, nrow = 1) +
+  geom_line(aes(group = treatment_combo), position = position_dodge(0.3)) +
+  geom_errorbar(aes(ymin = respiration_co2_ppm_hr - sd, ymax = respiration_co2_ppm_hr + sd), position = position_dodge(0.3), width = 0.2) +
+  theme_bw() +
+  scale_color_manual(values = c("#1f5776", "#c83126")) +
+  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank()) +
+  theme(legend.position = "none") 
 
 #### GLMMS ####
 #response = chitinase, protease, respiration
@@ -2453,7 +2918,7 @@ informpriors_prot <- c(prior(normal(6.928552, 0.2161154),
 informpriors_resp <- c(prior(normal(7.850019, 1.511284), 
                              class = "Intercept"))
 
-mchit <- brm(chitinase ~ ph*food*temperature+ (1|day) + (1|data_inoculated),data=meta_all_tubes,
+mchit <- brm(chitinase ~ ph*food*temperature+ (1|day),data=meta_all_tubes,
              family = Gamma(link = "log"), iter = 10000, chains = 4, cores = 4,control = list(adapt_delta = 0.999, stepsize = 0.001, max_treedepth=20),
              prior=informpriors_chit)
 pp_check(mchit)
@@ -2512,7 +2977,7 @@ ggplot(chit.pred, aes(x = x, y = predicted, shape = x, color = group)) +
   geom_errorbar(aes(ymin = conf.low, ymax = conf.high), width = 0, size=2,position = position_dodge(width = .7))+
   theme(legend.position="none")+ ylab("Predicted Chitinase Activity")+
   xlab("Food (g/L)")+ theme(
-    text = element_text(color = "black", size = 16 )
+    text = element_text(color = "black", size = 10 )
   )
 
 
@@ -2530,14 +2995,12 @@ ggplot(prot.pred, aes(x = x, y = predicted, shape = x, color = group)) +
   geom_errorbar(aes(ymin = conf.low, ymax = conf.high), width = 0, size=2,position = position_dodge(width = .7))+
   theme(legend.position="none")+ ylab("Predicted Protease Activity")+
   xlab("Food (g/L)")+ theme(
-    text = element_text(color = "black", size = 16 )
+    text = element_text(color = "black", size = 10 )
   )
 
 
 resp.pred <- ggpredict(mresp, terms = c("food", "temperature", "ph"))
 resp.pred$facet <- factor(resp.pred$facet, levels = c("3", "4", "5.6"))
-plot(resp.pred, facets = TRUE, line.size=2, dot.size=4, dodge=1) +
-  scale_color_manual(values=c("#1f5776", "#c83126"))
 
 ggplot(resp.pred, aes(x = x, y = predicted, shape = x, color = group)) +
   geom_point(size = 5, position = position_dodge(width = .7)) + # Dodging the points
@@ -2548,8 +3011,7 @@ ggplot(resp.pred, aes(x = x, y = predicted, shape = x, color = group)) +
   geom_errorbar(aes(ymin = conf.low, ymax = conf.high), width = 0, size=2,position = position_dodge(width = .7))+
   theme(legend.position="none")+ ylab("Predicted Respiration")+
   xlab("Food (g/L)")+ theme(
-    text = element_text(color = "black", size = 16 )
-  )
+    text = element_text(color = "black", size = 10 ))+ylim(c(0,35000))
 
 #Directional Effect of food on respiration
 posterior_mresp <- as.data.frame(mresp)
