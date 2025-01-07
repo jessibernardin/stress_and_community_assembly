@@ -1,6 +1,6 @@
 #### Community Assembly and Functioning under Environmental Stress ####
 #### Authors: Jessica R. Bernardin, Leonora S. Bittleston ####
-#### last update : October 30, 2024 ####
+#### last update : December 19th, 2024 ####
 #### Physiological Functions and Diversity Analysis
 
 #### Load Required Packages ####
@@ -11,8 +11,35 @@ packages_to_load <- c(
   "patchwork", "ggpubr", "corrr", "ggcorrplot", "factoextra", "MASS",
   "pairwiseAdonis", "plotrix", "gridExtra", "multcompView", "ggeffects", "this.path", "brms", "ggmulti",
   "phyloseq", "qiime2R", "picante", "decontam", "performance", "janitor", "ANCOMBC", "pheatmap", "chron",
-  "lubridate", "igraph", "Hmisc", "qgraph"
+  "lubridate", "igraph", "Hmisc", "qgraph", "mia", "cowplot", "microbiome"
 )
+
+#install.packages("BiocManager")
+library(BiocManager)
+
+#install.packages("devtools")
+library(devtools)
+
+#install.packages("microbiome")
+#BiocManager::install("mia")
+#BiocManager::install("ggdraw")
+#if (!requireNamespace("BiocManager", quietly = TRUE))
+  #  install.packages("BiocManager")
+#BiocManager::install("phyloseq")
+
+#if (!requireNamespace("devtools", quietly = TRUE)){install.packages("devtools")}
+#devtools::install_github("jbisanz/qiime2R")
+
+#if (!requireNamespace("BiocManager", quietly = TRUE))
+#  install.packages("BiocManager")
+#BiocManager::install("decontam")
+
+#if (!requireNamespace("BiocManager", quietly = TRUE))
+#  install.packages("BiocManager")
+#BiocManager::install("ANCOMBC")
+
+
+#install_github("pmartinezarbizu/pairwiseAdonis/pairwiseAdonis")
 
 # Load and install required packages
 for (i in packages_to_load) { #Installs packages if not yet installed
@@ -29,6 +56,12 @@ asv16s <- asv16s %>% column_to_rownames(var="#OTU ID")
 
 meta <- read_csv("Exp_2_metadata_tubes.csv")
 meta <- meta %>% remove_rownames %>% column_to_rownames(var="ID")
+
+#make a new column for the scaled data
+meta$scaled_chit <- as.numeric(scale(meta$chitinase))
+meta$scaled_prot <- as.numeric(scale(meta$protease))
+meta$sample_id <- as.factor(meta$sample_id)
+str(meta$sample_id)
 
 tax.16s <- read_tsv("exported-files/taxonomy.tsv")
 tax.16s <- tax.16s %>% column_to_rownames(var="Feature ID")
@@ -172,6 +205,13 @@ SAM.16sraw <- sample_data(meta)
 Exp2.physeq2 <-merge_phyloseq(phyloseq(OTU.16sraw),SAM.16sraw,TAX.16sraw,new_treeraw)
 Exp2.physeq2 #1406 taxa and 148 samples
 saveRDS(Exp2.physeq2, "RDS/Exp2.physeq2.RDS")
+
+Exp2.physeq2.nomix <- subset_samples(Exp2.physeq2, day %in% c("1","8","15","22","29","36","43","50","57")) 
+row_sums <- rowSums(otu_table(Exp2.physeq2.nomix))
+nonzero_rows <- row_sums != 0
+Exp2.physeq2.nomix <- prune_taxa(nonzero_rows, Exp2.physeq2.nomix)#1366 taxa and 144 samples
+
+
 
 #### Rarify ####
 #take out asv less than 10
@@ -414,7 +454,9 @@ Exp2.tubes.nomix.physeq3 <- prune_taxa(nonzero_rows, Exp2.tubes.nomix.physeq3)#5
 
 #### BETA DIVERSITY ####
 ## Calculate weighted Unifrac distance and run NMDS
-wu.dist.16s.tubes <- distance(Exp2.tubes.nomix.physeq3,"wUniFrac")
+#wu.dist.16s.tubes <- distance(Exp2.tubes.nomix.physeq3,"wUniFrac") not working for some reason
+wu.dist.16s.tubes <- phyloseq::distance(Exp2.tubes.nomix.physeq3, method="wunifrac")
+tubes.nomix.meta <- data.frame(sample_data(Exp2.tubes.nomix.physeq3))
 set.seed(123)
 wu.nmds.16s.tubes <- metaMDS(wu.dist.16s.tubes,
                              k = 2, 
@@ -503,6 +545,98 @@ ggplot(data_merge2, aes(x = MDS1, y = MDS2, color = ph, shape=food)) +
   labs(x = "NMDS1", y = "NMDS2", color = "pH", shape="Food", alpha = "Day")
 
 
+#### dbRDA beta diversity ####
+#wu.dist.16s.tubes
+#tubes.nomix.meta
+tubes.nomix.meta$sample_id <- as.numeric(tubes.nomix.meta$sample_id)
+tubes.nomix.meta$ph <- factor(tubes.nomix.meta$ph, levels = c(5.6, 4, 3))
+tubes.nomix.meta$food <- factor(tubes.nomix.meta$food, levels = c(3, 6))
+tubes.nomix.meta$temperature <- factor(tubes.nomix.meta$temperature, levels = c(22,37))
+tubes.nomix.meta$day <- as.numeric(tubes.nomix.meta$day)
+
+dbrda_beta <- dbrda(as.dist(wu.dist.16s.tubes) ~ temperature*ph*food+ day + Condition(sample_id),
+                   data = tubes.nomix.meta,
+                   distance = "NULL")
+dbrda_beta #constrained prop = 0.36369
+beta_sum_dbrda <- summary(dbrda_beta) #dbRDA1 and 2 Proportion Explained  0.5557 0.2380
+plot(dbrda_beta)
+
+beta_dbrda_anova <- anova.cca(dbrda_beta, by = "onedf", perm = 999)
+beta_dbrda_anova
+write.csv(beta_dbrda_anova, "beta_16s_dbrda_cca_aov.csv", row.names=TRUE)
+#Model: dbrda(formula = as.dist(wu.dist.16s.tubes) ~ temperature * ph * food + day + Condition(sample_id), data = tubes.nomix.meta, distance = "NULL")
+#Df SumOfSqs       F Pr(>F)    
+#temperature37             1   1.4385 19.7392  0.001 ***
+#ph4                       1   0.0331  0.4547  0.824    
+#ph3                       1   0.5707  7.8311  0.001 ***
+#food6                     1   0.2706  3.7130  0.007 ** 
+#day                       1   2.9019 39.8200  0.001 ***
+#temperature37:ph4         1   0.0366  0.5017  0.821    
+#temperature37:ph3         1   0.1362  1.8684  0.097 .  
+#temperature37:food6       1   0.2198  3.0165  0.014 *  
+#ph4:food6                 1   0.0216  0.2960  0.939    
+#ph3:food6                 1   0.0367  0.5039  0.800    
+#temperature37:ph4:food6   1   0.0255  0.3501  0.920    
+#temperature37:ph3:food6   1   0.0232  0.3179  0.934    
+#Residual                130   9.4739 
+significant_factors <- c("temperature37","food6", "ph","day","temperature:food")
+
+beta_est <- as.data.frame(cbind(x1 = dbrda_beta$CCA$biplot[,1], y1 = dbrda_beta$CCA$biplot[,2]))
+beta_est$factor <- row.names(dbrda_beta$CCA$biplot)
+beta_est$significant <- beta_est$factor %in% significant_factors
+significant_beta_est <- beta_est[beta_est$significant, ]
+
+sites_beta <- as.data.frame(beta_sum_dbrda$sites) 
+sites_beta_meta <- cbind(sites_beta,tubes.nomix.meta )
+sites_beta_meta$temperature <- as.factor(sites_beta_meta$temperature)
+ library(RVAideMemoire)
+pairwise_results_beta <-pairwise.perm.manova(sites_beta_meta[,1:2],tubes.nomix.meta$ph,nperm=999)
+pairwise_results_beta
+
+#.     3     4    
+#4   0.72   -    
+#5.6 0.72 0.85
+
+temperature_palette <- colorRampPalette(c("#1f5776", "#c83126"))(length(unique(sites_beta_meta$temperature)))
+temperature_colors <- temperature_palette[as.numeric(factor(sites_beta_meta$temperature))]
+par(mar = c(5, 5, 3, 2)) # setting figure parameters
+plot(dbRDA2 ~ dbRDA1, data = sites_beta_meta, pch = 20, type = "p", cex = 1.5, col = temperature_colors)
+arrows(x0 = rep(0, nrow(significant_beta_est)), y0 = rep(0, nrow(significant_beta_est)), 
+       x1 = significant_beta_est$x1, y1 = significant_beta_est$y1, lwd = 1, col = adjustcolor("black"))
+text(x = significant_beta_est$x1 * 1.2, y = significant_beta_est$y1 * 1.2, labels = significant_beta_est$factor)
+legend("topright", legend = levels(factor(sites_beta_meta$temperature)), fill = temperature_palette, 
+       title = "Temperature", cex = 0.8)
+
+sites_beta_meta$day <- as.factor(sites_beta_meta$day)
+ggplot(data = sites_beta_meta, aes(x = dbRDA1, y = dbRDA2, color = temperature, alpha=day)) +
+  geom_point(size = 3) +
+  scale_color_manual(values = c("#1f5776", "#c83126")) +
+  geom_segment(data = significant_beta_est, aes(x = 0, y = 0, xend = x1, yend = y1),
+               arrow = arrow(length = unit(0.2, "cm")), color = "black", size = 1, inherit.aes = FALSE) +
+  geom_text(data = significant_beta_est, aes(x = x1 * 1.2, y = y1 * 1.2, label = factor), 
+            hjust = 0, vjust = 0, inherit.aes = FALSE)+ theme_classic()+scale_alpha_discrete(range = c(1,.2))
+
+
+
+temperature_palette <- colorRampPalette(c("gray", "slategray", "black"))(length(unique(sites_beta_meta$day)))
+temperature_colors <- temperature_palette[as.numeric(factor(sites_beta_meta$day))]
+par(mar = c(5, 5, 3, 2)) # setting figure parameters
+plot(dbRDA2 ~ dbRDA1, data = sites_beta_meta, pch = 20, type = "p", cex = 1.5, col = temperature_colors)
+arrows(x0 = rep(0, nrow(significant_beta_est)), y0 = rep(0, nrow(significant_beta_est)), 
+       x1 = significant_beta_est$x1, y1 = significant_beta_est$y1, lwd = 1, col = adjustcolor("black"))
+text(x = significant_beta_est$x1 * 1.2, y = significant_beta_est$y1 * 1.2, labels = significant_beta_est$factor)
+legend("topright", legend = levels(factor(sites_beta_meta$day)), fill = temperature_palette, 
+       title = "Day", cex = 0.8)
+
+
+
+
+
+
+
+
+
+
 
 #### Mantel Test ####
 Exp2.tubes.physeq3_noNA = subset_samples(Exp2.tubes.nomix.physeq3, chitinase != "NA")
@@ -520,7 +654,7 @@ prot.dist <- vegdist(meta_mantel$protease,method="euclidean", na.rm=TRUE)
 
 chit.wu.man <- mantel(wu.dist.16s.tubes_noNA,chit.dist, method = "spearman", permutations=999)
 chit.wu.man
-#Mantel statistic r: 0.2459  -1 strong negative, +1 strong positivie, 0 none
+#Mantel statistic r: 0.2459  -1 strong negative, +1 strong positive, 0 none
 #Significance: 0.001
 
 
@@ -528,6 +662,168 @@ prot.wu.man <- mantel(wu.dist.16s.tubes_noNA,prot.dist, method = "spearman", per
 prot.wu.man
 #Mantel statistic r: 0.1225
 #Significance: 0.006
+
+
+#divide up the chit and prot mantel to extreme and normal like for ecoplate
+
+meta_en_ht<- subset(meta_mantel, temperature %in% c("37"))
+meta_en_lt<- subset(meta_mantel, temperature %in% c("22"))
+meta_en_ph3<- subset(meta_mantel, ph %in% c("3"))
+meta_en_ph4<- subset(meta_mantel, ph %in% c("4"))
+meta_en_ph5.6<- subset(meta_mantel, ph %in% c("5.6"))
+meta_en_food3<- subset(meta_mantel, food %in% c("3"))
+meta_en_food6<- subset(meta_mantel, food %in% c("6"))
+
+chit.distht <- vegdist(meta_en_ht$chitinase,method="bray", na.rm=TRUE)
+chit.distlt <- vegdist(meta_en_lt$chitinase,method="bray", na.rm=TRUE)
+chit.distph3 <- vegdist(meta_en_ph3$chitinase,method="bray", na.rm=TRUE)
+chit.distph4 <- vegdist(meta_en_ph4$chitinase,method="bray", na.rm=TRUE)
+chit.distph5.6 <- vegdist(meta_en_ph5.6$chitinase,method="bray", na.rm=TRUE)
+chit.distfood3 <- vegdist(meta_en_food3$chitinase,method="bray", na.rm=TRUE)
+chit.distfood6 <- vegdist(meta_en_food6$chitinase,method="bray", na.rm=TRUE)
+
+prot.distht <- vegdist(meta_en_ht$protease,method="bray", na.rm=TRUE)
+prot.distlt <- vegdist(meta_en_lt$protease,method="bray", na.rm=TRUE)
+prot.distph3 <- vegdist(meta_en_ph3$protease,method="bray", na.rm=TRUE)
+prot.distph4 <- vegdist(meta_en_ph4$protease,method="bray", na.rm=TRUE)
+prot.distph5.6 <- vegdist(meta_en_ph5.6$protease,method="bray", na.rm=TRUE)
+prot.distfood3 <- vegdist(meta_en_food3$protease,method="bray", na.rm=TRUE)
+prot.distfood6 <- vegdist(meta_en_food6$protease,method="bray", na.rm=TRUE)
+
+asven_ht <- subset(asv16s.rt, row.names(asv16s.rt) %in% rownames(meta_en_ht))
+asven_lt <- subset(asv16s.rt, row.names(asv16s.rt) %in% rownames(meta_en_lt))
+asven_ph3 <- subset(asv16s.rt, row.names(asv16s.rt) %in% rownames(meta_en_ph3))
+asven_ph4 <- subset(asv16s.rt, row.names(asv16s.rt) %in% rownames(meta_en_ph4))
+asven_ph5.6 <- subset(asv16s.rt, row.names(asv16s.rt) %in% rownames(meta_en_ph5.6))
+asven_food3 <- subset(asv16s.rt, row.names(asv16s.rt) %in% rownames(meta_en_food3))
+asven_food6 <- subset(asv16s.rt, row.names(asv16s.rt) %in% rownames(meta_en_food6))
+
+rownames_1 <- rownames(meta_en_ht)
+asven_ht <- asven_ht[rownames_1, ]
+rownames(asven_ht) == rownames(meta_en_ht)
+asven_ht <- asven_ht[,colSums(asven_ht) >0]
+
+rownames_2 <- rownames(meta_en_lt)
+asven_lt <- asven_lt[rownames_2, ]
+rownames(asven_lt) == rownames(meta_en_lt)
+asven_lt <- asven_lt[,colSums(asven_lt) >0]
+
+rownames_3 <- rownames(meta_en_ph3)
+asven_ph3 <- asven_ph3[rownames_3, ]
+rownames(asven_ph3) == rownames(meta_en_ph3)
+asven_ph3 <- asven_ph3[,colSums(asven_ph3) >0]
+
+rownames_4 <- rownames(meta_en_ph4)
+asven_ph4 <- asven_ph4[rownames_4, ]
+rownames(asven_ph4) == rownames(meta_en_ph4)
+asven_ph4 <- asven_ph4[,colSums(asven_ph4) >0]
+
+rownames_5 <- rownames(meta_en_ph5.6)
+asven_ph5.6 <- asven_ph5.6[rownames_5, ]
+rownames(asven_ph5.6) == rownames(meta_en_ph5.6)
+asven_ph5.6 <- asven_ph5.6[,colSums(asven_ph5.6) >0]
+
+rownames_6 <- rownames(meta_en_food3)
+asven_food3 <- asven_food3[rownames_6, ]
+rownames(asven_food3) == rownames(meta_en_food3)
+asven_food3 <- asven_food3[,colSums(asven_food3) >0]
+
+rownames_7 <- rownames(meta_en_food6)
+asven_food6 <- asven_food6[rownames_7, ]
+rownames(asven_food6) == rownames(meta_en_food6)
+asven_food6 <- asven_food6[,colSums(asven_food6) >0]
+
+mantel_asv_test <- as.matrix(wu.dist.16s.tubes)
+
+asv_dist_ht <- as.dist(mantel_asv_test[rownames_1, rownames_1])
+asv_dist_lt <- as.dist(mantel_asv_test[rownames_2, rownames_2])
+asv_dist_ph3 <- as.dist(mantel_asv_test[rownames_3, rownames_3])
+asv_dist_ph4 <- as.dist(mantel_asv_test[rownames_4, rownames_4])
+asv_dist_ph5.6 <- as.dist(mantel_asv_test[rownames_5, rownames_5])
+asv_dist_food3 <- as.dist(mantel_asv_test[rownames_6, rownames_6])
+asv_dist_food6 <- as.dist(mantel_asv_test[rownames_7, rownames_7])
+
+mantel_ht <- mantel(asv_dist_ht,chit.distht, method = "spearman", permutations=999)
+mantel_ht
+#Mantel statistic r: 0.5821  -1 strong negative, +1 strong positive, 0 none
+#Significance: 0.001
+
+mantel_lt <- mantel(asv_dist_lt,chit.distlt, method = "spearman", permutations=999)
+mantel_lt
+#Mantel statistic r: 0.1767  -1 strong negative, +1 strong positive, 0 none
+#Significance: 0.001
+
+mantel_ph3 <- mantel(asv_dist_ph3,chit.distph3, method = "spearman", permutations=999)
+mantel_ph3
+#Mantel statistic r: 0.3676  -1 strong negative, +1 strong positive, 0 none
+#Significance: 0.001
+
+mantel_ph4 <- mantel(asv_dist_ph4,chit.distph4, method = "spearman", permutations=999)
+mantel_ph4
+#Mantel statistic r: 0.394  -1 strong negative, +1 strong positive, 0 none
+#Significance: 0.001
+
+mantel_ph5.6 <- mantel(asv_dist_ph5.6,chit.distph5.6, method = "spearman", permutations=999)
+mantel_ph5.6
+#Mantel statistic r: 0.3339  -1 strong negative, +1 strong positive, 0 none
+#Significance: 0.001
+
+mantel_food3 <- mantel(asv_dist_food3,chit.distfood3, method = "spearman", permutations=999)
+mantel_food3
+#Mantel statistic r: 0.3178  -1 strong negative, +1 strong positive, 0 none
+#Significance: 0.003
+
+mantel_food6 <- mantel(asv_dist_food6,chit.distfood6, method = "spearman", permutations=999)
+mantel_food6
+#Mantel statistic r: 0.4403  -1 strong negative, +1 strong positive, 0 none
+#Significance: 0.001
+
+########mantel prot
+mantel_ht <- mantel(asv_dist_ht,prot.distht, method = "spearman", permutations=999)
+mantel_ht
+#Mantel statistic r: 0.3512  -1 strong negative, +1 strong positive, 0 none
+#Significance: 0.001
+
+mantel_lt <- mantel(asv_dist_lt,prot.distlt, method = "spearman", permutations=999)
+mantel_lt
+#Mantel statistic r: 0.1205  -1 strong negative, +1 strong positive, 0 none
+#Significance: 0.001
+
+mantel_ph3 <- mantel(asv_dist_ph3,prot.distph3, method = "spearman", permutations=999)
+mantel_ph3
+#Mantel statistic r: 0.0835  -1 strong negative, +1 strong positive, 0 none
+#Significance: 0.075
+
+mantel_ph4 <- mantel(asv_dist_ph4,prot.distph4, method = "spearman", permutations=999)
+mantel_ph4
+#Mantel statistic r: 0.03348  -1 strong negative, +1 strong positive, 0 none
+#Significance: 0.277
+
+mantel_ph5.6 <- mantel(asv_dist_ph5.6,prot.distph5.6, method = "spearman", permutations=999)
+mantel_ph5.6
+#Mantel statistic r: 0.1124  -1 strong negative, +1 strong positive, 0 none
+#Significance: 0.037
+
+mantel_food3 <- mantel(asv_dist_food3,prot.distfood3, method = "spearman", permutations=999)
+mantel_food3
+#Mantel statistic r: 0.1516  -1 strong negative, +1 strong positive, 0 none
+#Significance: 0.015
+
+mantel_food6 <- mantel(asv_dist_food6,prot.distfood6, method = "spearman", permutations=999)
+mantel_food6
+#Mantel statistic r: 0.1724  -1 strong negative, +1 strong positive, 0 none
+#Significance: 0.005
+
+
+
+
+
+
+
+
+
+
+
 
 # beta disper to check dispersion between treatments
 wu.bd.temperature <- betadisper(wu.dist.16s.tubes, data_merge2$temperature)
@@ -552,8 +848,9 @@ anova(wu.bd.day)# p=0.0003871 ***, significant differences in the dispersion bet
 
 #### PERMANOVA for categorical variables (factors) ####
 # set number of permutations
-ad.16s.treat2 <- adonis2(wu.dist.16s.tubes ~ temperature*ph*food + day, data=data_merge2)#"margin"
+ad.16s.treat2 <- adonis2(wu.dist.16s.tubes ~ temperature*ph*food + day, data=data_merge2, by="terms")
 ad.16s.treat2
+
 write.csv(ad.16s.treat2, "output_files/exp2_beta_inter.csv")  
 
 
@@ -1713,13 +2010,14 @@ ad.16s.mix
 #### ANCOMBC DIFFERENTIAL ABUNDANCE #### 
 #use non-rarified phyloseq object
 #TUBES ONLY
-tse = mia::makeTreeSummarizedExperimentFromPhyloseq(Exp2.physeq2)
+tse = mia::convertFromPhyloseq(Exp2.physeq2.nomix)
 tse$treatment_combo = factor(tse$treatment_combo, levels = c("temp22_ph5.6_food3","temp22_ph5.6_food6", "temp22_ph4_food3",
                                                              "temp22_ph4_food6", "temp22_ph3_food3", "temp22_ph3_food6", "temp37_ph5.6_food3",
                                                              "temp37_ph5.6_food6", "temp37_ph4_food3", "temp37_ph4_food6", "temp37_ph3_food3", "temp37_ph3_food6"))
 tse$ph <- factor(tse$ph, levels=c("5.6", "4", "3"))
 tse$temperature <- factor(tse$temperature, levels=c("22", "37"))
 tse$food <- factor(tse$food, levels=c("3", "6"))
+tse$sample_id <- as.factor(tse$sample_id)
 
 #read in new asv names
 newasv <- read.csv("Data/ANCOMBC_NEWNAMES.csv", header=TRUE)
@@ -1727,27 +2025,27 @@ newasv$newname2 <- paste(newasv$new_name, " - ", newasv$Genus)
 
 #### differentially abundant taxa across chitinase activity
 output_chit = ancombc2(data = tse, assay_name = "counts", tax_level = NULL,
-                       fix_formula = "chitinase+protease",
-                       rand_formula = "(1 | day)",
+                       fix_formula = "scaled_chit+scaled_prot",
+                       rand_formula = "(1 | day)",#cant use sample_id as random effect bc not enough observations per each factor (48)
                        p_adj_method = "fdr", pseudo_sens = TRUE,
                        prv_cut = 0.02,#4 tubes in 12 treatment groups at three time points, 144 tubes, so set prvcut to 2% meaning in at least 4 tubes
                        alpha = 0.05, n_cl = 3, verbose = TRUE,
                        global = FALSE, pairwise = FALSE)
 saveRDS(output_chit, "RDS/ancombc_chit.RDS")
-saveRDS(output_chit, "RDS/ancombc_chit_prot.RDS")
-
-output_chit <- readRDS("RDS/ancombc_chit.RDS")
+#output_chit <- readRDS("RDS/ancombc_chit.RDS")
 
 res_prim_chit <- output_chit$res
-chit_res_sig <- subset(res_prim_chit, diff_chitinase == "TRUE")
+chit_res_sig <- subset(res_prim_chit, diff_scaled_chit == "TRUE")
+prot_res_sig <- subset(res_prim_chit, diff_scaled_prot == "TRUE")
 dim(res_prim_chit) #69 taxa present in at least 2% of the samples
-dim(chit_res_sig)#18 taxa differentially abundant
+dim(chit_res_sig)#10 taxa differentially abundant
+dim(prot_res_sig)#8 22
 
 chit_res_sig_filt <- chit_res_sig[,c(1,3,5)]
 colnames(chit_res_sig_filt) <- c("ASV", "lfc", "se")
 
 
-chit_res_sig_filt_melt_names <- left_join(chit_res_sig_filt, newasv, by="ASV")
+chit_res_sig_filt_melt_names <- dplyr::left_join(chit_res_sig_filt, newasv, by="ASV")
 
 chit_res_sig_filt_melt_names <- chit_res_sig_filt_melt_names %>%
   arrange(lfc)
@@ -1761,12 +2059,23 @@ ggplot(chit_res_sig_filt_melt_names, aes(x = lfc, y = newname2)) +
   geom_errorbarh(aes(xmin = lfc - se, xmax = lfc + se), height = 0.2) +
   theme_classic()+geom_vline(xintercept = 0, linetype="dashed")
 
+prot_res_sig_filt <- prot_res_sig[,c(1,3,5)]
+colnames(prot_res_sig_filt) <- c("ASV", "lfc", "se")
 
+prot_res_sig_filt_melt_names <- dplyr::left_join(prot_res_sig_filt, newasv, by="ASV")
+
+prot_res_sig_filt_melt_names <- prot_res_sig_filt_melt_names %>%
+  arrange(lfc)
+taxon_levels <- unique(prot_res_sig_filt_melt_names$newname2)
+prot_res_sig_filt_melt_names$newname2 <- factor(prot_res_sig_filt_melt_names$newname2, levels = taxon_levels)
+
+dim(prot_res_sig_filt_melt_names)
+dim(chit_res_sig_filt_melt_names)
 
 #combine them
 chit_res_sig_filt_melt_names$df <- "chitinase"
 prot_res_sig_filt_melt_names$df <- "protease"
- df <- rbind(chit_res_sig_filt_melt_names, prot_res_sig_filt_melt_names)
+df <- rbind(chit_res_sig_filt_melt_names, prot_res_sig_filt_melt_names)
 
  ggplot(df, aes(x = newname2, y = lfc, color = newname2)) +
    geom_point(shape=1) +
@@ -1775,21 +2084,17 @@ prot_res_sig_filt_melt_names$df <- "protease"
    theme_classic() +
    geom_hline(yintercept = 0, linetype = "dashed")+
    theme(axis.text.x = element_text(angle = 45, hjust=1))+
-   theme(legend.position="none")+ylim(c(-40, 40))
+   theme(legend.position="none")
  
- 
- 
- # Primary y-axis plot
-ggplot(chit_res_sig_filt_melt_names, aes(x = newname2, y = lfc)) +
+ ggplot(chit_res_sig_filt_melt_names, aes(x = newname2, y = lfc)) +
    geom_point(color = "blue") +
    geom_errorbar(aes(ymin = lfc - se, ymax = lfc + se), width = 0.2, color = "blue") +
    geom_hline(yintercept = 0, linetype = "dashed") +
    ylab("Primary Y-Axis (Log Fold Change)") +
    theme_classic()+
    theme(axis.text.x = element_text(angle = 45, hjust=1))+
-   theme(legend.position="none")+ylim(c(-40, 40))
+   theme(legend.position="none")
  
- # Secondary y-axis plot
 ggplot(prot_res_sig_filt_melt_names, aes(x = newname2, y = lfc)) +
    geom_point(color = "red") +
    geom_errorbar(aes(ymin = lfc - se, ymax = lfc + se), width = 0.2, color = "red") +
@@ -1799,74 +2104,33 @@ ggplot(prot_res_sig_filt_melt_names, aes(x = newname2, y = lfc)) +
    theme(axis.title.y = element_text(color = "red"),
          axis.text.y = element_text(color = "red"))+
    theme(axis.text.x = element_text(angle = 45,hjust=1))+
-   theme(legend.position="none")+ylim(c(-0.015, 0.015))
+   theme(legend.position="none")
  
- # Combine the two plots
- combined_plot <- plot_grid(
-   p1, p2, align = "v", nrow = 1, rel_widths = c(0.9, 0.1), axis = "lr"
- )
- 
- # Add secondary axis label
- secondary_axis <- ggdraw() +
-   draw_plot_label("Secondary Y-Axis (Right)", x = 0.9, y = 0.5, angle = -90, color = "red")
- 
- # Overlay the plots and the secondary axis label
- final_plot <- plot_grid(combined_plot, secondary_axis, ncol = 2, rel_widths = c(0.9, 0.1))
- 
- 
- #### differentially abundant taxa across protease activity
-output_prot = ancombc2(data = tse, assay_name = "counts", tax_level = NULL,
-                       fix_formula = "protease",
-                       rand_formula = "(1 | day)",
-                       p_adj_method = "fdr", pseudo_sens = TRUE,
-                       prv_cut = 0.02,#4 tubes in 12 treatment groups at three time points, 144 tubes, so set prvcut to 2% meaning in at least 4 tubes
-                       alpha = 0.05, n_cl = 3, verbose = TRUE,
-                       global = FALSE, pairwise = FALSE)
-
-saveRDS(output_prot, "RDS/ancombc_prot.RDS")
-output_prot <- readRDS("RDS/ancombc_prot.RDS")
-res_prim_prot <- output_prot$res
-prot_res_sig <- subset(res_prim_prot, diff_protease == "TRUE")
-dim(res_prim_prot) #69 taxa present in at least 2% of the samples
-dim(prot_res_sig)#17 taxa differentially abundant
-
-prot_res_sig_filt <- prot_res_sig[,c(1,3,5)]
-colnames(prot_res_sig_filt) <- c("ASV", "lfc", "se")
-
-
-prot_res_sig_filt_melt_names <- left_join(prot_res_sig_filt, newasv, by="ASV")
-
-prot_res_sig_filt_melt_names <- prot_res_sig_filt_melt_names %>%
-  arrange(lfc)
-taxon_levels <- unique(prot_res_sig_filt_melt_names$newname2)
-prot_res_sig_filt_melt_names$newname2 <- factor(prot_res_sig_filt_melt_names$newname2, levels = taxon_levels)
-
 ch_anc <- chit_res_sig_filt_melt_names
 ch_anc$enzyme <- "chitinase"
 pr_anc <- prot_res_sig_filt_melt_names
 pr_anc$enzyme <- "protease"
-
 enz_anc <- rbind(ch_anc, pr_anc)
-
 
 ggplot(ch_anc, aes(x = enzyme, y = newname2, fill = lfc)) +
   geom_tile(color = "white") +
-  scale_fill_gradient2(low = "blue", mid="white",high = "orange")  +
+  scale_fill_gradient2(low = "#efe0a8", mid="#dfd8d2",high = "#5f555a")  +
   theme_minimal()+theme(text = element_text(color = "black", size = 10 ))+
   xlab("")+ ylab("")
 
 ggplot(pr_anc, aes(x = enzyme, y = newname2, fill = lfc)) +
   geom_tile(color = "white") +
-  scale_fill_gradient2(low = "blue", mid="white",high = "orange")  +
+  scale_fill_gradient(low = "#007FFF",high = "#FF8000")  +
   theme_minimal()+theme(text = element_text(color = "black", size = 10 ))+
   xlab("")+ ylab("")
 
+ggplot(enz_anc, aes(x = enzyme, y = newname2, fill = lfc)) +
+  geom_tile(color = "white") +
+  scale_fill_gradient2(low = "#88B04B",mid= "#FFF8DC",high = "#FFC107",limits = c(-2, 2))+
+  theme_minimal() +
+  theme(text = element_text(color = "black")) + xlab("") + ylab("")
 
-ggplot(chit_res_sig_filt_melt_names, aes(x = lfc, y = newname2)) +
-  geom_point() +
-  xlab("Log Fold Change") +
-  geom_errorbarh(aes(xmin = lfc - se, xmax = lfc + se), height = 0.2) +
-  theme_classic()+geom_vline(xintercept = 0, linetype="dashed")
+write.csv(df, "ANCOMBC_enzyme.csv", row.names=TRUE)
 
 #### differentially abundant taxa between treatments
 output_temp = ancombc2(data = tse, assay_name = "counts", tax_level = NULL,
@@ -1898,7 +2162,7 @@ dim(temp_res_sig) #23 da taxa temp
 ##all
 all.filt <- as.data.frame(all_res_sig[,1:6])
 colnames(all.filt)[1] <- "ASV"
-all.filt.name <- left_join(all.filt, newasv, by="ASV")
+all.filt.name <- dplyr::left_join(all.filt, newasv, by="ASV")
 all.filt.name.filt <- all.filt.name[,c(3,4,5,6,9)]
 
 all.filt.melt <- reshape2::melt(all.filt.name.filt, id.vars = "newname2")
@@ -1912,7 +2176,7 @@ ggplot(all.filt.melt, aes(x = variable, y = newname2, fill = value)) +
 ##temp
 temp.filt <- as.data.frame(temp_res_sig[,c(1,6)])
 colnames(temp.filt)[1] <- "ASV"
-temp.filt.name <- left_join(temp.filt, newasv, by="ASV")
+temp.filt.name <- dplyr::left_join(temp.filt, newasv, by="ASV")
 temp.filt.name.filt <- temp.filt.name[,c(2,5)]
 
 temp.filt.melt <- reshape2::melt(temp.filt.name.filt, id.vars = "newname2")
@@ -2239,7 +2503,7 @@ asv16s.top.20.tax <- parse_taxonomy(asv16s.top.20)
 rownames(asv16s.top.20.tax) == rownames(asv16s.top.20)
 asv16s.top.20.tax.abund <- cbind(asv16s.top.20.tax, asv16s.top.20)
 
-### loo at acinetobacter ###
+### look at acinetobacter ###
 acineto_tax <- tax.16s2.r[apply(tax.16s2.r, 1, function(x) any(grepl("Acinetobacter", x))), ]
 
 acineto_tax$asv <- rownames(acineto_tax)
@@ -2425,15 +2689,15 @@ eco.all.tubes.nometa <- subset(eco_all, select = -c(sample_id, ph, temperature, 
 eco.all.tubes.melt <- melt(eco_all, id.vars=c("sample_id", "ph", "temperature", "food", "container", "wk"))
 eco.all.tubes.melt$value <- ifelse(eco.all.tubes.melt$value <= 0, 0.001, eco.all.tubes.melt$value)
 
-ecom1 <- brm(value ~ variable*temperature+ (1|wk) ,data=eco.all.tubes.melt,
-             family = Gamma(link = "log"), iter = 10000, chains = 4, cores = 4,control = list(adapt_delta = 0.999, stepsize = 0.001, max_treedepth=20))
+#ecom1 <- brm(value ~ variable*temperature+ (1|wk) ,data=eco.all.tubes.melt,
+ #            family = Gamma(link = "log"), iter = 10000, chains = 4, cores = 4,control = list(adapt_delta = 0.999, stepsize = 0.001, max_treedepth=20))
 
-ecom2 <- brm(value ~ variable*ph+ (1|wk) ,data=eco.all.tubes.melt,
-             family = Gamma(link = "log"), iter = 10000, chains = 4, cores = 4,control = list(adapt_delta = 0.999, stepsize = 0.001, max_treedepth=20))
+#ecom2 <- brm(value ~ variable*ph+ (1|wk) ,data=eco.all.tubes.melt,
+ #            family = Gamma(link = "log"), iter = 10000, chains = 4, cores = 4,control = list(adapt_delta = 0.999, stepsize = 0.001, max_treedepth=20))
 
-ecom3 <- brm(value ~ variable*food+ (1|wk) ,data=eco.all.tubes.melt,
-             family = Gamma(link = "log"), iter = 10000, chains = 4, cores = 4,control = list(adapt_delta = 0.999, stepsize = 0.001, max_treedepth=20))
-
+#ecom3 <- brm(value ~ variable*food+ (1|wk) ,data=eco.all.tubes.melt,
+ #            family = Gamma(link = "log"), iter = 10000, chains = 4, cores = 4,control = list(adapt_delta = 0.999, stepsize = 0.001, max_treedepth=20))
+#
 
 #WEEK 0 AND 7 COMBINED
 bc.nmds.eco.tubesall <- metaMDS(eco.all.tubes.nometa, k=2, trymax=100)### Bray-Curtis is the default metric, k = 2 dimensions
@@ -2544,7 +2808,7 @@ eco.tubes.meta <- eco_all
 
 #remove metadata
 eco.tubes.nometa <- subset(eco.tubes.meta, select = -c(sample_id, ph, temperature, food, container, wk))
-tube_dist <- vegdist(eco.tubes.nometa)
+tube_dist <- vegdist(eco.tubes.nometa, method="bray")
 
 ## Calculate multivariate dispersions
 disp_tubes_wk <- betadisper(tube_dist, eco.tubes.meta$wk)
@@ -2568,22 +2832,8 @@ boxplot(disp_tubes_temp)
 anova(disp_tubes_temp)#0.02426 *
 
 #EcoPlate PERMANOVA
-ad_tubes2 <- adonis2(tube_dist ~ ph*temperature*food + wk, data=eco.tubes.meta)
+ad_tubes2 <- adonis2(tube_dist ~ temperature*ph*food + wk, data=eco.tubes.meta, by="terms")
 ad_tubes2 
-adonis2(formula = tube_dist ~ ph * temperature * food + wk, data = eco.tubes.meta)
-#Df SumOfSqs       R2       F Pr(>F)    
-#ph                   1   0.4750  0.11127 19.0584  0.001 ***
-#  temperature          1   0.1310  0.03069  5.2572  0.002 ** 
-#  food                 1   0.0463  0.01085  1.8592  0.105    
-#wk                   1   1.2982  0.30410 52.0884  0.001 ***
-#  ph:temperature       1   0.0997  0.02336  4.0014  0.006 ** 
-#  ph:food              1   0.0217  0.00507  0.8693  0.468    
-#temperature:food     1   0.0323  0.00756  1.2956  0.261    
-#ph:temperature:food  1  -0.0036 -0.00084 -0.1432  1.000    
-#Residual            87   2.1682  0.50792                   
-#Total               95   4.2688  1.00000     
-
-
 write_csv(ad_tubes2, "ecoplate_tubes_adonis2.csv")
 
 eco.tubes.pw.all <- pairwise.adonis(eco.all.tubes.nometa, eco.all.tubes$ph , p.adjust.m='holm')
@@ -2594,6 +2844,120 @@ write_csv(eco.tubes.pw.all, "ecoplate_tubes_pw_ph.csv")
 #1 4 vs 5.6  1 0.04536638  2.205683 0.0343534   0.084      0.084    
 #2   4 vs 3  1 0.51471228 10.710689 0.1473056   0.001      0.003   *
 #  3 5.6 vs 3  1 0.55225694 12.229011 0.1647471   0.001      0.003   *
+
+eco.tubes.meta$sample_id <- as.numeric(eco.tubes.meta$sample_id)
+eco.tubes.meta$ph <- factor(eco.tubes.meta$ph, levels = c(5.6, 4, 3))
+eco.tubes.meta$food <- factor(eco.tubes.meta$food, levels = c(3, 6))
+eco.tubes.meta$temperature <- factor(eco.tubes.meta$temperature, levels = c(22,37))
+eco.tubes.meta$wk <- factor(eco.tubes.meta$wk, levels = c(1,8))
+
+dbrda_eco <- dbrda(eco.tubes.nometa ~ temperature*ph*food+ wk, Condition=sample_id,
+                  data = eco.tubes.meta,
+                  distance = "bray")
+
+eco_sum_dbrda <- summary(dbrda_eco)
+plot(dbrda_eco,cex=1)
+#Partitioning of squared Bray distance:
+#Inertia Proportion
+#Total           4.269     1.0000
+#Constrained     2.458     0.5757
+#Unconstrained   1.811     0.4243
+
+
+eco_dbrda_anova <- anova.cca(dbrda_eco, by = "onedf", perm = 999)
+eco_dbrda_anova
+#Df SumOfSqs       F Pr(>F)    
+#temperature37            1  0.13102  6.0045  0.001 ***
+#ph4                      1  0.18930  8.6753  0.001 ***
+#ph3                      1  0.55226 25.3089  0.001 ***
+#food6                    1  0.04634  2.1235  0.087 .  
+#wk8                      1  1.29816 59.4922  0.001 ***
+#temperature37:ph4        1  0.03994  1.8303  0.130    
+#temperature37:ph3        1  0.11000  5.0409  0.002 ** 
+#temperature37:food6      1  0.03229  1.4798  0.213    
+#ph4:food6                1  0.03557  1.6301  0.168    
+#ph3:food6                1  0.02775  1.2716  0.256    
+#temperature37:ph4:food6  1 -0.00101 -0.0464  1.000    
+#temperature37:ph3:food6  1 -0.00388 -0.1776  1.000    
+#Residual                83  1.81112  
+
+
+#eco.tubes.pw.all <- pairwise.adonis(eco.tubes.nometa, eco.tubes.meta$ph , p.adjust.m='holm')
+#eco.tubes.pw.all
+
+write.csv(eco_dbrda_anova, "ecoplate_tubes_dbrda_cca_aov.csv", row.names=TRUE)
+significant_factors <- c("temperature37","ph3", "ph4","wk8", "temperature37:ph3")
+
+#pw_eco <- multiconstrained(method="capscale", eco.tubes.nometa~temperature*ph*food, data=eco.tubes.meta,
+#                 distance="bray",add=TRUE)
+
+
+
+
+eco_est <- as.data.frame(cbind(x1 = dbrda_eco$CCA$biplot[,1], y1 = dbrda_eco$CCA$biplot[,2]))
+eco_est$factor <- row.names(dbrda_eco$CCA$biplot)
+eco_est$significant <- eco_est$factor %in% significant_factors
+significant_eco_est <- eco_est[eco_est$significant, ]
+
+sites_eco <- as.data.frame(eco_sum_dbrda$sites) 
+sites_eco_meta <- cbind(sites_eco,eco.tubes.meta )
+
+
+#install.packages("RVAideMemoire")
+#library(RVAideMemoire)
+pairwise_results <-pairwise.perm.manova(sites_eco_meta[,1:2],eco.tubes.meta$ph,nperm=999)
+pairwise_results
+#  5.6      4     
+#4 0.4580.  -     
+#3 0.0015   0.0015
+
+
+temperature_palette <- colorRampPalette(c("#1f5776", "#c83126"))(length(unique(sites_eco_meta$temperature)))
+temperature_colors <- temperature_palette[as.numeric(factor(sites_eco_meta$temperature))]
+par(mar = c(5, 5, 3, 2)) # setting figure parameters
+plot(dbRDA2 ~ dbRDA1, data = sites_eco_meta, pch = 20, type = "p", cex = 1.5, col = temperature_colors)
+arrows(x0 = rep(0, nrow(significant_eco_est)), y0 = rep(0, nrow(significant_eco_est)), 
+       x1 = significant_eco_est$x1, y1 = significant_eco_est$y1, lwd = 1, col = adjustcolor("black"))
+text(x = significant_eco_est$x1 * 1.2, y = significant_eco_est$y1 * 1.2, labels = significant_eco_est$factor)
+legend("topright", legend = levels(factor(sites_eco_meta$temperature)), fill = temperature_palette, 
+       title = "Temperature", cex = 0.8)
+
+
+ph_palette <- colorRampPalette(c("#CA64A3","#9A4EAE", "#301934"))(length(unique(sites_eco_meta$ph)))
+ph_colors <- ph_palette[as.numeric(factor(sites_eco_meta$ph))]
+par(mar = c(5, 5, 3, 2)) # setting figure parameters
+plot(dbRDA2 ~ dbRDA1, data = sites_eco_meta, pch = 20, type = "p", cex = 1.5, col = ph_colors)
+arrows(x0 = rep(0, nrow(significant_eco_est)), y0 = rep(0, nrow(significant_eco_est)), 
+       x1 = significant_eco_est$x1, y1 = significant_eco_est$y1, lwd = 1, col = adjustcolor("black"))
+text(x = significant_eco_est$x1 * 1.2, y = significant_eco_est$y1 * 1.2, labels = significant_eco_est$factor)
+legend("topright", legend = levels(factor(sites_eco_meta$ph)), fill = ph_palette, 
+       title = "pH", cex = 0.8)
+
+
+sites_eco_meta$wk <- as.factor(sites_eco_meta$wk)
+sites_eco_meta$temperature <- as.factor(sites_eco_meta$temperature)
+sites_eco_meta$ph <- factor(sites_eco_meta$ph, levels=c(3, 4, 5.6))
+
+ggplot(data = sites_eco_meta, aes(x = dbRDA1, y = dbRDA2, color = temperature, alpha=wk)) +
+  geom_point(size = 3) +
+  scale_color_manual(values = c("#1f5776", "#c83126")) +
+  geom_segment(data = significant_eco_est, aes(x = 0, y = 0, xend = x1, yend = y1),
+               arrow = arrow(length = unit(.2, "cm")), color = "black", size = 1, inherit.aes = FALSE) +
+  geom_text(data = significant_eco_est, aes(x = x1 * 1, y = y1 * 1, label = factor), 
+            hjust = 0, vjust = 0, inherit.aes = FALSE)+ theme_classic()+scale_alpha_discrete(range = c(1,.4))+
+  theme(legend.title=element_blank())
+
+
+ggplot(data = sites_eco_meta, aes(x = dbRDA1, y = dbRDA2, color = ph, alpha=wk)) +
+  geom_point(size = 3) +
+  scale_color_manual(values = c("#CA64A3","#9A4EAE", "#301934")) +
+  geom_segment(data = significant_eco_est, aes(x = 0, y = 0, xend = x1, yend = y1),
+               arrow = arrow(length = unit(.2, "cm")), color = "black", size = 1, inherit.aes = FALSE) +
+  geom_text(data = significant_eco_est, aes(x = x1 * 1, y = y1 * 1, label = factor), 
+            hjust = 0, vjust = 0, inherit.aes = FALSE)+ theme_classic()+scale_alpha_discrete(range = c(1,.4)) +
+  theme(legend.title=element_blank())
+
+
 
 #### PROCRUSTES ####
 dim(eco_all)#96
@@ -2683,7 +3047,7 @@ ggarrange(pro_a, pro_b, pro_c, nrow=1)
 
 
 
-#repeat but just for the day 1
+#repeat but just for the day 57
 dim(eco_all)#96
 sample_ids <- unique(eco_all$sample_id)
 length(sample_ids) #48
@@ -2786,6 +3150,322 @@ pro_c <-ggplot(pro_final_merge_meta, aes(group = sample_id, color=food)) +
   theme_classic()+scale_color_manual(values=c("#90ee90", "#228822"))+theme(legend.position = "none")
 
 ggarrange(pro_a, pro_b, pro_c, nrow=1)
+
+
+#### ECOPLATE MANTEL TESTS ####
+mantel_meta <- meta
+mantel_meta$id <- rownames(mantel_meta)
+mantel_meta$wk <- NA
+mantel_meta$wk[mantel_meta$day == 1] <- 1  
+mantel_meta$wk[mantel_meta$day == 57] <- 8 
+
+mantel_meta <- subset(mantel_meta, wk %in% c("1", "8"))
+
+meta_ht<- subset(mantel_meta, temperature %in% c("37"))
+meta_lt<- subset(mantel_meta, temperature %in% c("22"))
+meta_ph3<- subset(mantel_meta, ph %in% c("3"))
+meta_ph4<- subset(mantel_meta, ph %in% c("4"))
+meta_ph5.6<- subset(mantel_meta, ph %in% c("5.6"))
+meta_food3<- subset(mantel_meta, food %in% c("3"))
+meta_food6<- subset(mantel_meta, food %in% c("6"))
+
+eco_mantel <- left_join(mantel_meta, eco_all, by=c("sample_id", "wk"))
+rownames(eco_mantel) <- eco_mantel$id
+eco_mantel <- eco_mantel[,18:48]
+
+#format ASV data
+asv_pro <- asv16s.rt
+
+eco_ht <- subset(eco_mantel, row.names(eco_mantel) %in% rownames(meta_ht))
+eco_lt <- subset(eco_mantel, row.names(eco_mantel) %in% rownames(meta_lt))
+eco_ph3 <- subset(eco_mantel, row.names(eco_mantel) %in% rownames(meta_ph3))
+eco_ph4 <- subset(eco_mantel, row.names(eco_mantel) %in% rownames(meta_ph4))
+eco_ph5.6 <- subset(eco_mantel, row.names(eco_mantel) %in% rownames(meta_ph5.6))
+eco_food3 <- subset(eco_mantel, row.names(eco_mantel) %in% rownames(meta_food3))
+eco_food6 <- subset(eco_mantel, row.names(eco_mantel) %in% rownames(meta_food6))
+
+asv_ht <- subset(asv16s.rt, row.names(asv16s.rt) %in% rownames(meta_ht))
+asv_lt <- subset(asv16s.rt, row.names(asv16s.rt) %in% rownames(meta_lt))
+asv_ph3 <- subset(asv16s.rt, row.names(asv16s.rt) %in% rownames(meta_ph3))
+asv_ph4 <- subset(asv16s.rt, row.names(asv16s.rt) %in% rownames(meta_ph4))
+asv_ph5.6 <- subset(asv16s.rt, row.names(asv16s.rt) %in% rownames(meta_ph5.6))
+asv_food3 <- subset(asv16s.rt, row.names(asv16s.rt) %in% rownames(meta_food3))
+asv_food6 <- subset(asv16s.rt, row.names(asv16s.rt) %in% rownames(meta_food6))
+
+rownames_1 <- rownames(eco_ht)
+asv_ht <- asv_ht[rownames_1, ]
+rownames(asv_ht) == rownames(eco_ht)
+asv_ht <- asv_ht[,colSums(asv_ht) >0]
+
+rownames_2 <- rownames(eco_lt)
+asv_lt <- asv_lt[rownames_2, ]
+rownames(asv_lt) == rownames(eco_lt)
+asv_lt <- asv_lt[,colSums(asv_lt) >0]
+
+rownames_3 <- rownames(eco_ph3)
+asv_ph3 <- asv_ph3[rownames_3, ]
+rownames(asv_ph3) == rownames(eco_ph3)
+asv_ph3 <- asv_ph3[,colSums(asv_ph3) >0]
+
+rownames_4 <- rownames(eco_ph4)
+asv_ph4 <- asv_ph4[rownames_4, ]
+rownames(asv_ph4) == rownames(eco_ph4)
+asv_ph4 <- asv_ph4[,colSums(asv_ph4) >0]
+
+rownames_5 <- rownames(eco_ph5.6)
+asv_ph5.6 <- asv_ph5.6[rownames_5, ]
+rownames(asv_ph5.6) == rownames(eco_ph5.6)
+asv_ph5.6 <- asv_ph5.6[,colSums(asv_ph5.6) >0]
+
+rownames_6 <- rownames(eco_food3)
+asv_food3 <- asv_food3[rownames_6, ]
+rownames(asv_food3) == rownames(eco_food3)
+asv_food3 <- asv_food3[,colSums(asv_food3) >0]
+
+rownames_7 <- rownames(eco_food6)
+asv_food6 <- asv_food6[rownames_7, ]
+rownames(asv_food6) == rownames(eco_food6)
+asv_food6 <- asv_food6[,colSums(asv_food6) >0]
+
+mantel_asv_test <- as.matrix(wu.dist.16s.tubes)
+
+asv_dist_ht <- as.dist(mantel_asv_test[rownames_1, rownames_1])
+asv_dist_lt <- as.dist(mantel_asv_test[rownames_2, rownames_2])
+asv_dist_ph3 <- as.dist(mantel_asv_test[rownames_3, rownames_3])
+asv_dist_ph4 <- as.dist(mantel_asv_test[rownames_4, rownames_4])
+asv_dist_ph5.6 <- as.dist(mantel_asv_test[rownames_5, rownames_5])
+asv_dist_food3 <- as.dist(mantel_asv_test[rownames_6, rownames_6])
+asv_dist_food6 <- as.dist(mantel_asv_test[rownames_7, rownames_7])
+
+eco_dist_ht <- vegdist(eco_ht, method="bray")
+eco_dist_lt <- vegdist(eco_lt, method="bray")
+eco_dist_ph3 <- vegdist(eco_ph3, method="bray")
+eco_dist_ph4 <- vegdist(eco_ph4, method="bray")
+eco_dist_ph5.6 <- vegdist(eco_ph5.6, method="bray")
+eco_dist_food3 <- vegdist(eco_food3, method="bray")
+eco_dist_food6 <- vegdist(eco_food6, method="bray")
+
+mantel_ht <- mantel(asv_dist_ht,eco_dist_ht, method = "spearman", permutations=999)
+mantel_ht
+#Mantel statistic r: 0.4507  -1 strong negative, +1 strong positive, 0 none
+#Significance: 0.001
+plot(asv_dist_ht,eco_dist_ht)
+
+asv_dist_vectorht <- as.vector(asv_dist_ht)
+eco_dist_vectorht <- as.vector(eco_dist_ht)
+data_lt <- data.frame(asv_dist_vectorht = asv_dist_vectorht, eco_dist_vectorht = eco_dist_vectorht)
+ggplot(data_lt, aes(x = asv_dist_vectorht, y = eco_dist_vectorht)) +
+  geom_point(col="#c83126") +xlim(c(0,.82))+ylim(c(0,.82))+theme_classic()+
+  geom_smooth(method = "lm", col = "black") +
+  labs( x = "High Temperature Weighted UniFrac Dissimilarity\n(16S Community Composition)",
+       y = "High Temperature Bray-Curtis Dissimilarity\n(EcoPlate Carbon Substrate Use)")
+
+mantel_lt <- mantel(asv_dist_lt,eco_dist_lt, method = "spearman", permutations=999)
+mantel_lt
+#Mantel statistic r: 0.3023  -1 strong negative, +1 strong positive, 0 none
+#Significance: 0.001
+plot(asv_dist_lt,eco_dist_lt)
+
+asv_dist_vectorlt <- as.vector(asv_dist_lt)
+eco_dist_vectorlt <- as.vector(eco_dist_lt)
+data_lt <- data.frame(asv_dist_vectorlt = asv_dist_vectorlt, eco_dist_vectorlt = eco_dist_vectorlt)
+ggplot(data_lt, aes(x = asv_dist_vectorlt, y = eco_dist_vectorlt)) +
+  geom_point(col="#1f5776") +xlim(c(0,.82))+ylim(c(0,.82))+theme_classic()+
+  geom_smooth(method = "lm", col = "black") +
+  labs( x = "Normal Temperature Weighted UniFrac Dissimilarity\n(16S Community Composition)",
+        y = "Normal Temperature Bray-Curtis Dissimilarity\n(EcoPlate Carbon Substrate Use)")
+
+
+mantel_ph3 <- mantel(asv_dist_ph3,eco_dist_ph3, method = "spearman", permutations=999)
+mantel_ph3
+#Mantel statistic r: 0.3603  -1 strong negative, +1 strong positive, 0 none
+#Significance: 0.001
+plot(asv_dist_ph3,eco_dist_ph3)
+
+mantel_ph4 <- mantel(asv_dist_ph4,eco_dist_ph4, method = "spearman", permutations=999)
+mantel_ph4
+#Mantel statistic r: 0.4423  -1 strong negative, +1 strong positive, 0 none
+#Significance: 0.001
+plot(asv_dist_ph4,eco_dist_ph4)
+
+mantel_ph5.6 <- mantel(asv_dist_ph5.6,eco_dist_ph5.6, method = "spearman", permutations=999)
+mantel_ph5.6
+#Mantel statistic r: 0.4311  -1 strong negative, +1 strong positive, 0 none
+#Significance: 0.001
+plot(asv_dist_ph5.6,eco_dist_ph5.6)
+
+mantel_food3 <- mantel(asv_dist_food3,eco_dist_food3, method = "spearman", permutations=999)
+mantel_food3
+#Mantel statistic r: 0.2626  -1 strong negative, +1 strong positive, 0 none
+#Significance: 0.003
+plot(asv_dist_food3,eco_dist_food3)
+
+mantel_food6 <- mantel(asv_dist_food6,eco_dist_food6, method = "spearman", permutations=999)
+mantel_food6
+#Mantel statistic r: 0.3882  -1 strong negative, +1 strong positive, 0 none
+#Significance: 0.001
+plot(asv_dist_food6,eco_dist_food6)
+
+
+
+#procrustes analysis
+mds.ecoht <- metaMDS(eco_ht)
+mds.asvht <- metaMDS(asv_ht)
+
+procrustes_resulttemmp37 <- protest(mds.asvht,mds.ecoht, scale=TRUE)
+procrustes_resulttemmp37
+plot(procrustes_resulttemmp37)
+#high temp
+#Procrustes Sum of Squares (m12 squared):        0.6454
+#Correlation in a symmetric Procrustes rotation: 0.5955
+#Significance:  0.001
+
+Yrotscoreht <- as.data.frame(procrustes_resulttemmp37$Yrot)
+Xscoreht <- as.data.frame(procrustes_resulttemmp37$X)
+pro_ht <- cbind(Xscoreht, Yrotscoreht)
+pro_ht$sample_id <- rownames(pro_ht)
+meta_ht$sample_id <- rownames(meta_ht)
+pro_meta_ht <- left_join(pro_ht, meta_ht, by="sample_id")
+pro_meta_ht$temperature <- as.factor(pro_meta_ht$temperature)
+ggplot(pro_meta_ht) +
+  geom_segment(aes(x = NMDS1, y = NMDS2, xend = V1, yend = V2, color="gray"), color="gray",
+               arrow = arrow(type = "open", length = unit(0.1, "inches")))+
+  geom_point(aes(x = V1, y = V2), size=3, col="#c83126",shape=1) + 
+  geom_point(aes(x = NMDS1, y = NMDS2), size=3, col="#c83126",shape=19)+theme_classic()+
+  xlim(c(-.26,.42))+ylim(c(-.1,.25))
+
+
+max(pro_meta_ht$NMDS1)#0.1643132
+min(pro_meta_ht$NMDS2)#-0.1167475
+max(pro_meta_ht$V1)#0.245463
+min(pro_meta_ht$V2)#-0.05705124
+
+
+
+
+
+mds.ecolt <- metaMDS(eco_lt)
+mds.asvlt <- metaMDS(asv_lt)
+
+procrustes_resulttemmp22 <- protest(mds.asvlt,mds.ecolt, scale=TRUE)
+procrustes_resulttemmp22
+plot(procrustes_resulttemmp22)
+#low temp
+#Procrustes Sum of Squares (m12 squared):        0.7987
+#Correlation in a symmetric Procrustes rotation: 0.4486
+#Significance:  0.001
+
+Yrotscorelt <- as.data.frame(procrustes_resulttemmp22$Yrot)
+Xscorelt <- as.data.frame(procrustes_resulttemmp22$X)
+pro_lt <- cbind(Xscorelt, Yrotscorelt)
+pro_lt$sample_id <- rownames(pro_lt)
+meta_lt$sample_id <- rownames(meta_lt)
+pro_meta_lt <- left_join(pro_lt, meta_lt, by="sample_id")
+pro_meta_lt$temperature <- as.factor(pro_meta_lt$temperature)
+ggplot(pro_meta_lt) +
+  geom_segment(aes(x = NMDS1, y = NMDS2, xend = V1, yend = V2, color="gray"), color="gray",
+               arrow = arrow(type = "open", length = unit(0.1, "inches")))+
+  geom_point(aes(x = V1, y = V2), size=3, col="#1f5776",shape=1) + 
+  geom_point(aes(x = NMDS1, y = NMDS2), size=3, col="#1f5776",shape=19)+theme_classic()+
+  xlim(c(-.26,.42))+ylim(c(-.1,.25))
+
+
+max(pro_meta_lt$NMDS1)#0.4004384
+min(pro_meta_lt$NMDS2)#-0.2561536
+max(pro_meta_lt$V1)#0.08987522
+min(pro_meta_lt$V2)#-0.05467201
+
+
+procrustes_resultph4 <- protest(mds.eco2,mds.asv2, scale=TRUE)
+procrustes_resultph4
+plot(procrustes_resultph4)
+#ph4
+#Procrustes Sum of Squares (m12 squared):        0.6354
+#Correlation in a symmetric Procrustes rotation: 0.6038
+#Significance:  0.001
+
+
+procrustes_resultfood3 <- protest(mds.eco2,mds.asv2, scale=TRUE)
+procrustes_resultfood3
+plot(procrustes_resultfood3)
+#low food
+#Procrustes Sum of Squares (m12 squared):        0.9246
+#Correlation in a symmetric Procrustes rotation: 0.2746
+#Significance:  0.047
+
+procrustes_resultfood6 <- protest(mds.eco2,mds.asv2, scale=TRUE)
+procrustes_resultfood6
+plot(procrustes_resultfood6)
+#highfood
+#Procrustes Sum of Squares (m12 squared):        0.8056
+#Correlation in a symmetric Procrustes rotation: 0.4409
+#Significance:  0.002
+
+
+procrustes_resulttemmp37 <- protest(mds.eco2,mds.asv2, scale=TRUE)
+procrustes_resulttemmp37
+plot(procrustes_resulttemmp37)
+#high temp
+#Procrustes Sum of Squares (m12 squared):        0.6481
+#Correlation in a symmetric Procrustes rotation: 0.5932
+#Significance:  0.001
+
+procrustes_resulttemmp22 <- protest(mds.eco2,mds.asv2, scale=TRUE)
+procrustes_resulttemmp22
+plot(procrustes_resulttemmp22)
+#low temp
+#Procrustes Sum of Squares (m12 squared):        0.7929
+#Correlation in a symmetric Procrustes rotation: 0.4551
+#Significance:  0.001
+
+
+procrustes_resultph3 <- protest(mds.eco2,mds.asv2, scale=TRUE)
+procrustes_resultph3
+plot(procrustes_resultph3)
+#low ph
+#Procrustes Sum of Squares (m12 squared):        0.8707
+#Correlation in a symmetric Procrustes rotation: 0.3596
+#Significance:  0.036
+
+procrustes_resultph5.6 <- protest(mds.eco2,mds.asv2, scale=TRUE)
+procrustes_resultph5.6
+plot(procrustes_resultph5.6)
+#highph
+#Procrustes Sum of Squares (m12 squared):        0.7847
+#Correlation in a symmetric Procrustes rotation: 0.464
+#Significance:  0.003
+
+
+
+
+
+
+meta_pro <- subset(meta, food %in% c("6"))
+meta_pro$food <- as.factor(meta_pro$food)
+Yrotscore <- as.data.frame(procrustes_resultfood6$Yrot)
+Xscore <- as.data.frame(procrustes_resultfood6$X)
+pro_final_merge <- cbind(Yrotscore, Xscore)
+pro_final_merge$sample_id <- rownames(pro_final_merge)
+meta_pro$sample_id <- rownames(meta_pro)
+pro_final_merge_meta <- left_join(pro_final_merge, meta_pro, by="sample_id")
+pro_final_merge_meta$temperature <- as.factor(pro_final_merge_meta$temperature)
+pro_final_merge_meta$ph <- as.factor(pro_final_merge_meta$ph)
+ggplot(pro_final_merge_meta) +
+  geom_segment(aes(x = V1, y = V2, xend = NMDS1, yend = NMDS2, color="gray"), color="gray",
+               arrow = arrow(type = "open", length = unit(0.1, "inches")))+
+  geom_point(aes(x = V1, y = V2, color=food,shape=day), size=3) + 
+  geom_point(aes(x = NMDS1, y = NMDS2, color=food,shape=day), size=3)+
+  theme_classic()+scale_color_manual(values=c("#228822"))
+
+
+# red "#c83126"
+# blue "#1f5776"
+# pink "#CA64A3"
+#light purple "#9A4EAE"
+#dark purple "#301934"
+#light green "#90ee90"
+#dark green "#228822"
+
 
 
 #### CHITINASE ####
