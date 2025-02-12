@@ -11,7 +11,7 @@ packages_to_load <- c(
   "patchwork", "ggpubr", "corrr", "ggcorrplot", "factoextra", "MASS",
   "pairwiseAdonis", "plotrix", "gridExtra", "multcompView", "ggeffects", "this.path", "brms", "ggmulti",
   "phyloseq", "qiime2R", "picante", "decontam", "performance", "janitor", "ANCOMBC", "pheatmap", "chron",
-  "lubridate", "igraph", "Hmisc", "qgraph", "mia", "cowplot", "microbiome", "stringr"
+  "lubridate", "igraph", "Hmisc", "qgraph", "mia", "cowplot", "microbiome"
 )
 
 #install.packages("BiocManager")
@@ -297,17 +297,16 @@ df.summaryrich <- md16s %>%
 df.summaryrich <- na.omit(df.summaryrich)
 
 df.summaryrich$ph <- factor(df.summaryrich$ph, levels=c("3", "4", "5.6"))
-
 ggplot(df.summaryrich, aes(day, richness, color = temperature, shape = food)) +
   geom_jitter(size = 3, alpha = 0.9, position = position_dodge(0.3)) +
   facet_wrap(~ph, nrow = 1) +
   geom_line(aes(group = treatment_combo), position = position_dodge(0.3)) +
   geom_errorbar(aes(ymin = richness - sd, ymax = richness + sd), position = position_dodge(0.3), width = 0.2) +
-  theme_bw() +scale_shape_manual(values=c(16,2)) +
+  theme_bw() +
   scale_color_manual(values = c("#1f5776", "#c83126")) +
   theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank()) +
   theme(legend.position = "none") +
-  scale_y_continuous(limits = c(20, 80), breaks = c(20, 40, 60, 80))
+  ylim(c(0, 100))
 
 
 #model for alpha diversity
@@ -316,26 +315,70 @@ md16s$temperature <- relevel(md16s$temperature, ref = "22")
 md16s$ph <- relevel(md16s$ph, ref = "5.6")
 md16s$day <- as.numeric(as.character(md16s$day))
 
-#### ASV Richness ####
-mrich2 <- brm(richness ~ ph*food*temperature+day,data=md16s, family=Gamma(link = "log"),iter = 1000, chains = 4, cores = 4)#,control = list(adapt_delta = 0.999, stepsize = 0.001, max_treedepth=20)
+mens <- brm(ef.16s ~ ph*food*temperature+day,data=md16s, family=Gamma(link = "log"),iter = 5000, chains = 4, cores = 4,control = list(adapt_delta = 0.999, stepsize = 0.001, max_treedepth=20))
+saveRDS(mens, "RDS/Exp2_ENS_tubes.RDS")
+#mens <- readRDS("RDS/Exp2_ENS_tubes.RDS")
+mcmc_plot(mens, regex_pars="b_",  
+          prob_outer=0.95,
+         prob=0.95)+theme_classic()
+
+posteriormens <- mcmc_intervals_data(mens, 
+                                     prob_outer=0.95,
+                                     prob=0.5) 
+
+posteriormens$nonzero <- NA
+posteriormens$nonzero[posteriormens$ll>0 & posteriormens$hh>0] <- "nonzero"
+posteriormens$nonzero[posteriormens$ll<0 & posteriormens$hh<0] <- "nonzero"
+posteriormens$nonzero[is.na(posteriormens$nonzero)] <- "zero"
+posteriormens<- posteriormens[1:13,]
+
+ggplot(posteriormens, aes(x = parameter,
+                          shape=nonzero)) +
+  geom_hline(yintercept = 0, linetype = 3, 
+             size=1, color = "#b0b5b3") +
+  geom_pointrange(aes(ymin = ll, ymax = hh, y = m),
+                  position= position_dodge(width=0.75),
+                  size = 3/4) +
+  scale_shape_manual(values=c(17, 19), 
+                     labels=c("95% CI does\nnot contain zero", 
+                              "95% CI\ncontains zero"))+
+  coord_flip() +
+  theme(axis.text.y = element_text( size=7), 
+        axis.text.x=element_text(size=7),
+        axis.title = element_text(size=7), 
+        legend.text = element_text(size=7)) +
+  xlab(NULL) +
+  ylab("Estimated effect on Effective Number of ASVs")+
+  theme(panel.background = element_rect(fill = "white", colour = "black"))
+
+mens.pred <- ggpredict(mens, terms = c("day", "ph", "temperature", "food"))
+
+mens.pred$group <- factor(mens.pred$group, levels = c("3", "4", "5.6"))
+ggplot(mens.pred, aes(x=x, y=predicted, color=facet, shape=panel))+geom_point()+
+  facet_wrap(~group)+theme_classic()+geom_line()+
+  scale_color_manual(values=c("#1f5776", "#c83126"))
+
+
+
+###richness
+mrich2 <- brm(richness ~ ph*food*temperature+day + (1|sample_id),data=md16s, family=Gamma(link = "log"),iter = 1000, chains = 4, cores = 4)#,control = list(adapt_delta = 0.999, stepsize = 0.001, max_treedepth=20)
 #saveRDS(mrich2, "RDS/Exp2_richness_tubes.RDS")
 mrich <- readRDS("RDS/Exp2_richness_tubes.RDS")
 summary(mrich2)
 mcmc_plot(mrich2)
-rich.pred <- predict_response(mrich2, terms = c("food", "temperature", "ph"))
+rich.pred <- ggpredict(mrich2, terms = c("food", "temperature", "ph", "day"))
 rich.pred$facet <- factor(rich.pred$facet, levels = c("3", "4", "5.6"))
+plot(rich.pred, facets = TRUE, line.size=2, dot.size=4, dodge=1) +
+  scale_color_manual(values=c("#1f5776", "#c83126"))
 
-ggplot(rich.pred, aes(x = x, y = predicted, shape = x, color = group)) + 
+ggplot(rich.pred, aes(x = x, y = predicted, shape = x, color = group)) +
+  geom_point(size = 5, position = position_dodge(width = .7)) + # Dodging the points
   facet_wrap(~facet) +
   scale_color_manual(values = c("#1f5776", "#c83126")) +
-  theme_bw() +scale_shape_manual(values=c(16,2)) +
+  theme_bw() +
   theme(panel.grid.major = element_blank(),panel.grid.minor = element_blank()) +
-  geom_errorbar(aes(ymin = conf.low, ymax = conf.high), width = 0, size=1,position = position_dodge(width = .7))+
-  theme(legend.position="none")+ ylab("Predicted ASV Richness")+
-  xlab("Food (g/L)")+ geom_point(size = 3, position = position_dodge(width = .7)) +theme(
-    text = element_text(color = "black", size = 10 ))+
-  scale_y_continuous(limits = c(20, 80), breaks = c(20, 40, 60, 80))
-
+  geom_errorbar(aes(ymin = conf.low, ymax = conf.high), width = 0, size=2,position = position_dodge(width = .7))+
+  theme(legend.position="none")+ylim(c(0, 75))
 
 
 posteriormrich <- mcmc_intervals_data(mrich2, 
@@ -347,36 +390,30 @@ posteriormrich$nonzero[posteriormrich$ll>0 & posteriormrich$hh>0] <- "nonzero"
 posteriormrich$nonzero[posteriormrich$ll<0 & posteriormrich$hh<0] <- "nonzero"
 posteriormrich$nonzero[is.na(posteriormrich$nonzero)] <- "zero"
 posteriormrich<- posteriormrich[1:13,]
-posteriormrich <- posteriormrich %>%
-  mutate(parameter = str_remove(parameter, "^b_") %>%  # Remove "b_" prefix
-           str_replace_all(":", ": ") %>%
-           str_replace_all("ph3", "pH 3") %>%
-           str_replace_all("ph4", "pH 4") %>%
-           str_replace_all("food6", "high food") %>%
-           str_replace_all("temperature37", "high temp"))
 
-posteriormrich <- posteriormrich %>%
-  mutate(parameter = factor(parameter, 
-                            levels = c("Intercept", 
-                                       "day",
-                                       "high temp", 
-                                       "high food", 
-                                       "pH 3", 
-                                       "pH 4", 
-                                       "pH 3: high food", 
-                                       "pH 4: high food", 
-                                       "pH 3: high temp", 
-                                       "pH 4: high temp", 
-                                       "high food: high temp", 
-                                       "pH 3: high food: high temp", 
-                                       "pH 4: high food: high temp")))
+ggplot(posteriormrich, aes(x = parameter,
+                          shape=nonzero)) +
+  geom_hline(yintercept = 0, linetype = 3, 
+             size=1, color = "#b0b5b3") +
+  geom_pointrange(aes(ymin = ll, ymax = hh, y = m),
+                  position= position_dodge(width=0.75),
+                  size = 3/4) +
+  scale_shape_manual(values=c(17, 19), 
+                     labels=c("95% CI does\nnot contain zero", 
+                              "95% CI\ncontains zero"))+
+  coord_flip() +
+  theme(axis.text.y = element_text( size=14), 
+        axis.text.x=element_text(size=14),
+        axis.title = element_text(size=14), 
+        legend.text = element_text(size=14)) +
+  xlab(NULL) +
+  ylab("Estimated effect on Bacterial Richness")+
+  theme(panel.background = element_rect(fill = "white", colour = "black"))
 
-ggplot(posteriormrich, aes(x = parameter, shape=nonzero)) +
-  geom_hline(yintercept = 0, linetype = 2, size=.35, color = "black") +
-  geom_pointrange(aes(ymin = ll, ymax = hh, y = m), position= position_dodge(width=0.75), size = 1, linewidth = 1) +
-  scale_shape_manual(values=c(17, 19), labels=c("95% CI does\nnot contain zero", "95% CI\ncontains zero"))+
-  coord_flip() +xlab(NULL) + ylab("Estimated effect on ASV Richness")+ theme(text = element_text(color = "black", size = 16))+
-  theme(panel.background = element_rect(fill = "white", colour = "black"))+theme(legend.position="none")
+
+
+
+
 
 #### MAKE PHYLOSEQ OBJECTS ####
 #Exp2.physeq3.RDS = RARIFIED
@@ -415,10 +452,102 @@ nonzero_rows <- row_sums != 0
 Exp2.tubes.nomix.physeq3 <- prune_taxa(nonzero_rows, Exp2.tubes.nomix.physeq3)#51 taxa and 4 samples
 
 
-####  dbRDA BETA DIVERSITY ####
-## Calculate weighted Unifrac distance
+#### BETA DIVERSITY ####
+## Calculate weighted Unifrac distance and run NMDS
+#wu.dist.16s.tubes <- distance(Exp2.tubes.nomix.physeq3,"wUniFrac") not working for some reason
 wu.dist.16s.tubes <- phyloseq::distance(Exp2.tubes.nomix.physeq3, method="wunifrac")
 tubes.nomix.meta <- data.frame(sample_data(Exp2.tubes.nomix.physeq3))
+set.seed(123)
+wu.nmds.16s.tubes <- metaMDS(wu.dist.16s.tubes,
+                             k = 2, 
+                             trymax = 1000,
+                             wascores = TRUE)
+
+saveRDS(wu.nmds.16s.tubes, file = "RDS/Exp2.wu.nmds.16s.tubes.RDS")
+#wu.nmds.16s.tubes <- readRDS("Exp2.wu.nmds.16s.tubes.RDS")
+
+## Plot NMDS
+data.scores2 <- as.data.frame(scores(wu.nmds.16s.tubes$points[,1:2]))
+data.scores2$ID <- rownames(data.scores2)
+meta.r$ID <- rownames(meta.r)
+data_merge2 <- merge(data.scores2, meta.r, by = c("ID"))
+data_merge2$food <- ifelse(is.na(data_merge2$food), "inoculant", data_merge2$food)
+data_merge2$ph <- ifelse(is.na(data_merge2$ph), "inoculant", data_merge2$ph)
+data_merge2$temperature <- ifelse(is.na(data_merge2$temperature), "inoculant", data_merge2$temperature)
+data_merge2$day <- as.factor(data_merge2$day)
+data_merge2$ph <- as.factor(data_merge2$ph)
+data_merge2$food <- as.factor(data_merge2$food)
+data_merge2$temperature <- as.factor(data_merge2$temperature)
+
+plot(1, type = "n", xlab="NMDS Axis 1", ylab="NMDS Axis 2", xlim=range(wu.nmds.16s.tubes$points[,1]), ylim=range(wu.nmds.16s.tubes$points[,2]), main="Exp2 16S")
+ordiarrows(wu.nmds.16s.tubes, groups = data_merge2$sample_id, startmark = 1, lwd = 1, col="gray")
+points(wu.nmds.16s.tubes$points[,1:2], col= c("#CA64A3","#9A4EAE", "#301934", "slategray")[data_merge2$ph], pch= 19, cex= 1)
+legend("bottomleft", 
+       legend=c("3.0","4.0", "5.6"),
+       col= c("#CA64A3","#9A4EAE", "#301934", "slategray"),
+       pch= 19,
+       cex=1,
+       title="pH",
+       bty = "n")
+
+
+plot(1, type = "n", xlab="NMDS Axis 1", ylab="NMDS Axis 2", xlim=range(wu.nmds.16s.tubes$points[,1]), ylim=range(wu.nmds.16s.tubes$points[,2]), main="Exp2 16S")
+ordiarrows(wu.nmds.16s.tubes, groups = data_merge2$sample_id, startmark = 1, lwd = 1, col="gray")
+points(wu.nmds.16s.tubes$points[,1:2], col= c("#90ee90", "#228822")[data_merge2$food], pch= 19, cex= 1)
+legend("bottomleft", 
+       legend=c("3g/L","6g/L"),
+       col= c("#90ee90", "#228822"),
+       title="Food",
+       pch= 19,
+       cex=1,
+       bty = "n")
+
+
+plot(1, type = "n", xlab="NMDS Axis 1", ylab="NMDS Axis 2", xlim=range(wu.nmds.16s.tubes$points[,1]), ylim=range(wu.nmds.16s.tubes$points[,2]), main="Exp2 16S")
+ordiarrows(wu.nmds.16s.tubes, groups = data_merge2$sample_id, startmark = 1, lwd = 1, col="gray")
+points(wu.nmds.16s.tubes$points[,1:2], col= c("#1f5776", "#c83126")[data_merge2$temperature], pch= 19, cex= 1)
+legend("bottomleft", 
+       legend=c("22°C","37°C"),
+       col= c("#1f5776", "#c83126"),
+       pch= 19,
+       cex=1,
+       title="Temperature",
+       bty = "n")
+
+data_merge2$day<- as.factor(data_merge2$day)
+ggplot(data_merge2, aes(x = MDS1, y = MDS2, color = temperature, shape=food)) +
+  geom_point(size = 4, aes(alpha = day)) + 
+  scale_color_manual(values = c("#1f5776", "#c83126", "black")) + 
+  scale_alpha_discrete(range = c(1,0.1)) +  # Adjust range as needed
+  theme(axis.text.y = element_text(colour = "black", size = 12, face = "bold"), 
+        axis.text.x = element_text(colour = "black", face = "bold", size = 12), 
+        legend.text = element_text(size = 12, face = "bold", colour = "black"), 
+        legend.position = "right", axis.title.y = element_text(face = "bold", size = 14), 
+        axis.title.x = element_text(face = "bold", size = 14, colour = "black"), 
+        legend.title = element_text(size = 14, colour = "black", face = "bold"), 
+        panel.background = element_blank(), panel.border = element_rect(colour = "black", fill = NA, size = 1.2), 
+        legend.key = element_blank()) + 
+  labs(x = "NMDS1", y = "NMDS2", color = "Temperature", shape="Food", alpha = "Day")
+
+
+ggplot(data_merge2, aes(x = MDS1, y = MDS2, color = ph, shape=food)) +
+  geom_point(size = 4, aes(alpha = day)) + 
+  scale_color_manual(values = c("#CA64A3","#9A4EAE", "#301934", "black")) + 
+  scale_alpha_discrete(range = c(1,0.1)) +  # Adjust range as needed
+  theme(axis.text.y = element_text(colour = "black", size = 12, face = "bold"), 
+        axis.text.x = element_text(colour = "black", face = "bold", size = 12), 
+        legend.text = element_text(size = 12, face = "bold", colour = "black"), 
+        legend.position = "right", axis.title.y = element_text(face = "bold", size = 14), 
+        axis.title.x = element_text(face = "bold", size = 14, colour = "black"), 
+        legend.title = element_text(size = 14, colour = "black", face = "bold"), 
+        panel.background = element_blank(), panel.border = element_rect(colour = "black", fill = NA, size = 1.2), 
+        legend.key = element_blank()) + 
+  labs(x = "NMDS1", y = "NMDS2", color = "pH", shape="Food", alpha = "Day")
+
+
+#### dbRDA beta diversity ####
+#wu.dist.16s.tubes
+#tubes.nomix.meta
 tubes.nomix.meta$sample_id <- as.numeric(tubes.nomix.meta$sample_id)
 tubes.nomix.meta$ph <- factor(tubes.nomix.meta$ph, levels = c(5.6, 4, 3))
 tubes.nomix.meta$food <- factor(tubes.nomix.meta$food, levels = c(3, 6))
@@ -428,20 +557,70 @@ tubes.nomix.meta$day <- as.numeric(tubes.nomix.meta$day)
 dbrda_beta <- dbrda(as.dist(wu.dist.16s.tubes) ~ temperature*ph*food+ day + Condition(sample_id),
                    data = tubes.nomix.meta,
                    distance = "NULL")
-
 dbrda_beta #constrained prop = 0.36369
 beta_sum_dbrda <- summary(dbrda_beta) #dbRDA1 and 2 Proportion Explained  0.5557 0.2380
+plot(dbrda_beta)
+
 beta_dbrda_anova <- anova.cca(dbrda_beta, by = "onedf", perm = 999)
 beta_dbrda_anova
 write.csv(beta_dbrda_anova, "beta_16s_dbrda_cca_aov.csv", row.names=TRUE)
+#Model: dbrda(formula = as.dist(wu.dist.16s.tubes) ~ temperature * ph * food + day + Condition(sample_id), data = tubes.nomix.meta, distance = "NULL")
+#Df SumOfSqs       F Pr(>F)    
+#temperature37             1   1.4385 19.7392  0.001 ***
+#ph4                       1   0.0331  0.4547  0.824    
+#ph3                       1   0.5707  7.8311  0.001 ***
+#food6                     1   0.2706  3.7130  0.007 ** 
+#day                       1   2.9019 39.8200  0.001 ***
+#temperature37:ph4         1   0.0366  0.5017  0.821    
+#temperature37:ph3         1   0.1362  1.8684  0.097 .  
+#temperature37:food6       1   0.2198  3.0165  0.014 *  
+#ph4:food6                 1   0.0216  0.2960  0.939    
+#ph3:food6                 1   0.0367  0.5039  0.800    
+#temperature37:ph4:food6   1   0.0255  0.3501  0.920    
+#temperature37:ph3:food6   1   0.0232  0.3179  0.934    
+#Residual                130   9.4739 
 significant_factors <- c("temperature37","food6", "ph3","day","temperature37:food6")
 
 beta_est <- as.data.frame(cbind(x1 = dbrda_beta$CCA$biplot[,1], y1 = dbrda_beta$CCA$biplot[,2]))
 beta_est$factor <- row.names(dbrda_beta$CCA$biplot)
 beta_est$significant <- beta_est$factor %in% significant_factors
 significant_beta_est <- beta_est[beta_est$significant, ]
+
 sites_beta <- as.data.frame(beta_sum_dbrda$sites) 
 sites_beta_meta <- cbind(sites_beta,tubes.nomix.meta )
+sites_beta_meta$temperature <- as.factor(sites_beta_meta$temperature)
+
+temperature_palette <- colorRampPalette(c("#1f5776", "#c83126"))(length(unique(sites_beta_meta$temperature)))
+temperature_colors <- temperature_palette[as.numeric(factor(sites_beta_meta$temperature))]
+par(mar = c(5, 5, 3, 2)) # setting figure parameters
+plot(dbRDA2 ~ dbRDA1, data = sites_beta_meta, pch = 20, type = "p", cex = 1.5, col = temperature_colors)
+arrows(x0 = rep(0, nrow(significant_beta_est)), y0 = rep(0, nrow(significant_beta_est)), 
+       x1 = significant_beta_est$x1, y1 = significant_beta_est$y1, lwd = 1, col = adjustcolor("black"))
+text(x = significant_beta_est$x1 , y = significant_beta_est$y1 , labels = significant_beta_est$factor)
+legend("topright", legend = levels(factor(sites_beta_meta$temperature)), fill = temperature_palette, 
+       title = "Temperature", cex = 0.8)
+
+sites_beta_meta$day <- as.factor(sites_beta_meta$day)
+ggplot(data = sites_beta_meta, aes(x = dbRDA1, y = dbRDA2, color = temperature, alpha=day)) +
+  geom_point(size = 3) +
+  scale_color_manual(values = c("#1f5776", "#c83126")) +
+  geom_segment(data = significant_beta_est, aes(x = 0, y = 0, xend = x1, yend = y1),
+               arrow = arrow(length = unit(0.2, "cm")), color = "black", size = 1, inherit.aes = FALSE) +
+  geom_text(data = significant_beta_est, aes(x = x1 * 1.2, y = y1 * 1.2, label = factor), 
+            hjust = 0, vjust = 0, inherit.aes = FALSE)+ theme_classic()+scale_alpha_discrete(range = c(1,.2))
+
+
+
+temperature_palette <- colorRampPalette(c("gray", "slategray", "black"))(length(unique(sites_beta_meta$day)))
+temperature_colors <- temperature_palette[as.numeric(factor(sites_beta_meta$day))]
+par(mar = c(5, 5, 3, 2)) # setting figure parameters
+plot(dbRDA2 ~ dbRDA1, data = sites_beta_meta, pch = 20, type = "p", cex = 1.5, col = temperature_colors)
+arrows(x0 = rep(0, nrow(significant_beta_est)), y0 = rep(0, nrow(significant_beta_est)), 
+       x1 = significant_beta_est$x1, y1 = significant_beta_est$y1, lwd = 1, col = adjustcolor("black"))
+text(x = significant_beta_est$x1 * 1.2, y = significant_beta_est$y1 * 1.2, labels = significant_beta_est$factor)
+legend("topright", legend = levels(factor(sites_beta_meta$day)), fill = temperature_palette, 
+       title = "Day", cex = 0.8)
+
 
 sites_beta_meta$day <- as.factor(sites_beta_meta$day)
 sites_beta_meta$temperature <- as.factor(sites_beta_meta$temperature)
@@ -474,6 +653,15 @@ ggplot(data = sites_beta_meta, aes(x = dbRDA1, y = dbRDA2, color = food, alpha=d
   geom_text(data = significant_beta_est, aes(x = x1, y = y1, label = factor), 
             hjust = 0, vjust = 0, inherit.aes = FALSE)+ theme_classic()+scale_alpha_discrete(range = c(1,.7))+
   theme(legend.title=element_blank())
+
+
+
+
+
+
+
+
+
 
 #### Mantel Test ####
 Exp2.tubes.physeq3_noNA = subset_samples(Exp2.tubes.nomix.physeq3, chitinase != "NA")
@@ -848,7 +1036,7 @@ SESPDday57$ph <- factor(SESPDday57$ph, levels=c("5.6", "3", "4"))
 
 pd_model <- brm(pd.obs.z ~ temperature * food * ph ,data=SESPDday57, iter = 10000, chains = 4, cores = 4)
 saveRDS(pd_model, "RDS/pd_model.RDS")
-pd_model <- readRDS("RDS/pd_model.RDS")
+
 mcmc_plot(pd_model, regex_pars="b_",
           prob_outer=0.95,
           prob=0.95)+theme_classic()+scale_color_manual(values="black")
@@ -923,35 +1111,24 @@ posteriorpd$nonzero[posteriorpd$ll<0 & posteriorpd$hh<0] <- "nonzero"
 posteriorpd$nonzero[is.na(posteriorpd$nonzero)] <- "zero"
 posteriorpd<- posteriorpd[1:12,]
 
-posteriorpd <- posteriorpd %>%
-  mutate(parameter = str_remove(parameter, "^b_") %>%  # Remove "b_" prefix
-           str_replace_all(":", ": ") %>%
-           str_replace_all("ph3", "pH 3") %>%
-           str_replace_all("ph4", "pH 4") %>%
-           str_replace_all("food6", "high food") %>%
-           str_replace_all("temperature37", "high temp"))
+ggplot(posteriorpd, aes(x = parameter,
+                          shape=nonzero)) +
+  geom_hline(yintercept = 0, linetype = 3, 
+             size=1, color = "#b0b5b3") +
+  geom_pointrange(aes(ymin = ll, ymax = hh, y = m),
+                  position= position_dodge(width=0.75),
+                  size = 3/4) +
+  scale_shape_manual(values=c(17, 19), 
+                     labels=c("95% CI does\nnot contain zero", 
+                              "95% CI\ncontains zero"))+
+  coord_flip() +
+  xlab(NULL) +
+  ylab("Estimated effect on SESPD")+
+  theme(
+    text = element_text(color = "black", size = 16 ))+
+  theme(panel.background = element_rect(fill = "white", colour = "black"))+
+  theme(legend.position="none")
 
-posteriorpd <- posteriorpd %>%
-  mutate(parameter = factor(parameter, 
-                            levels = c("Intercept", 
-                                       "high temp", 
-                                       "high food", 
-                                       "pH 3", 
-                                       "pH 4", 
-                                       "high food: pH 3", 
-                                       "high food: pH 4", 
-                                       "high temp: pH 3", 
-                                       "high temp: pH 4", 
-                                       "high temp: high food", 
-                                       "high temp: high food: pH 3", 
-                                       "high temp: high food: pH 4")))
-
-ggplot(posteriorpd, aes(x = parameter, shape=nonzero)) +
-  geom_hline(yintercept = 0, linetype = 2, size=.35, color = "black") +
-  geom_pointrange(aes(ymin = ll, ymax = hh, y = m), position= position_dodge(width=0.75), size = 1, linewidth = 1) +
-  scale_shape_manual(values=c(17, 19), labels=c("95% CI does\nnot contain zero", "95% CI\ncontains zero"))+
-  coord_flip() +xlab(NULL) + ylab("Estimated effect on SESPD")+ theme(text = element_text(color = "black", size = 16))+
-  theme(panel.background = element_rect(fill = "white", colour = "black"))+theme(legend.position="none")
 
 
 
@@ -1035,8 +1212,8 @@ ggplot(stat_mpd, aes(x=food, y=mean_mpd, color=temperature, shape=food))+geom_po
 
 
 mpd_model <- brm(mpd.obs.z ~ temperature * food * ph ,data=SESMPDday57, iter = 10000, chains = 4, cores = 4)
-saveRDS(mpd_model, "RDS/mpd_model.RDS")
-mpd_model <- readRDS("RDS/mpd_model.RDS")
+saveRDS(mpd_model, "mpd_model.RDS")
+
 mcmc_plot(mpd_model, regex_pars="b_",
           prob_outer=0.95,
           prob=0.95)+theme_classic()
@@ -1115,37 +1292,23 @@ posteriormpd$nonzero[posteriormpd$ll<0 & posteriormpd$hh<0] <- "nonzero"
 posteriormpd$nonzero[is.na(posteriormpd$nonzero)] <- "zero"
 posteriormpd<- posteriormpd[1:12,]
 
-posteriormpd <- posteriormpd %>%
-  mutate(parameter = str_remove(parameter, "^b_") %>%  # Remove "b_" prefix
-           str_replace_all(":", ": ") %>%
-           str_replace_all("ph3", "pH 3") %>%
-           str_replace_all("ph4", "pH 4") %>%
-           str_replace_all("food6", "high food") %>%
-           str_replace_all("temperature37", "high temp"))
-
-posteriormpd <- posteriormpd %>%
-  mutate(parameter = factor(parameter, 
-                            levels = c("Intercept", 
-                                       "high temp", 
-                                       "high food", 
-                                       "pH 3", 
-                                       "pH 4", 
-                                       "high food: pH 3", 
-                                       "high food: pH 4", 
-                                       "high temp: pH 3", 
-                                       "high temp: pH 4", 
-                                       "high temp: high food", 
-                                       "high temp: high food: pH 3", 
-                                       "high temp: high food: pH 4")))
-
-ggplot(posteriormpd, aes(x = parameter, shape=nonzero)) +
-  geom_hline(yintercept = 0, linetype = 2, size=.35, color = "black") +
-  geom_pointrange(aes(ymin = ll, ymax = hh, y = m), position= position_dodge(width=0.75), size = 1, linewidth = 1) +
-  scale_shape_manual(values=c(17, 19), labels=c("95% CI does\nnot contain zero", "95% CI\ncontains zero"))+
-  coord_flip() +xlab(NULL) + ylab("Estimated effect on SESMPD")+ theme(text = element_text(color = "black", size = 16))+
-  theme(panel.background = element_rect(fill = "white", colour = "black"))+theme(legend.position="none")
-
-
+ggplot(posteriormpd, aes(x = parameter,
+                        shape=nonzero)) +
+  geom_hline(yintercept = 0, linetype = 3, 
+             size=1, color = "#b0b5b3") +
+  geom_pointrange(aes(ymin = ll, ymax = hh, y = m),
+                  position= position_dodge(width=0.75),
+                  size = 3/4) +
+  scale_shape_manual(values=c(17, 19), 
+                     labels=c("95% CI does\nnot contain zero", 
+                              "95% CI\ncontains zero"))+
+  coord_flip() +
+  xlab(NULL) +
+  ylab("Estimated effect on SESMPD")+
+  theme(
+    text = element_text(color = "black", size = 16 ))+
+  theme(panel.background = element_rect(fill = "white", colour = "black"))+
+  theme(legend.position="none")
 
 #### SES MNTD ####
 
@@ -1223,8 +1386,7 @@ total_numbers <- length(SESMNTDday57$mntd.obs.z)
 
 
 mntd_model <- brm(mntd.obs.z ~ temperature * food * ph,data=SESMNTDday57, iter = 10000, chains = 4, cores = 4)
-saveRDS(mntd_model, "RDS/mntd_model.RDS")
-mntd_model <- readRDS("RDS/mntd_model.RDS")
+saveRDS(mntd_model, "mntd_model.RDS")
 mcmc_plot(mntd_model, regex_pars="b_",
           prob_outer=0.95,
           prob=0.95)+theme_classic()
@@ -1312,35 +1474,26 @@ posteriormntd$nonzero[posteriormntd$ll<0 & posteriormntd$hh<0] <- "nonzero"
 posteriormntd$nonzero[is.na(posteriormntd$nonzero)] <- "zero"
 posteriormntd<- posteriormntd[1:12,]
 
-posteriormntd <- posteriormntd %>%
-  mutate(parameter = str_remove(parameter, "^b_") %>%  # Remove "b_" prefix
-           str_replace_all(":", ": ") %>%
-           str_replace_all("ph3", "pH 3") %>%
-           str_replace_all("ph4", "pH 4") %>%
-           str_replace_all("food6", "high food") %>%
-           str_replace_all("temperature37", "high temp"))
+ggplot(posteriormntd, aes(x = parameter,
+                         shape=nonzero)) +
+  geom_hline(yintercept = 0, linetype = 3, 
+             size=1, color = "#b0b5b3") +
+  geom_pointrange(aes(ymin = ll, ymax = hh, y = m),
+                  position= position_dodge(width=0.75),
+                  size = 3/4) +
+  scale_shape_manual(values=c(17, 19), 
+                     labels=c("95% CI does\nnot contain zero", 
+                              "95% CI\ncontains zero"))+
+  coord_flip() +
+  xlab(NULL) +
+  ylab("Estimated effect on SESMNTD")+
+  theme(
+    text = element_text(color = "black", size = 16 ))+
+  theme(panel.background = element_rect(fill = "white", colour = "black"))+
+  theme(legend.position="none")
 
-posteriormntd <- posteriormntd %>%
-  mutate(parameter = factor(parameter, 
-                            levels = c("Intercept", 
-                                       "high temp", 
-                                       "high food", 
-                                       "pH 3", 
-                                       "pH 4", 
-                                       "high food: pH 3", 
-                                       "high food: pH 4", 
-                                       "high temp: pH 3", 
-                                       "high temp: pH 4", 
-                                       "high temp: high food", 
-                                       "high temp: high food: pH 3", 
-                                       "high temp: high food: pH 4")))
 
-ggplot(posteriormntd, aes(x = parameter, shape=nonzero)) +
-  geom_hline(yintercept = 0, linetype = 2, size=.35, color = "black") +
-  geom_pointrange(aes(ymin = ll, ymax = hh, y = m), position= position_dodge(width=0.75), size = 1, linewidth = 1) +
-  scale_shape_manual(values=c(17, 19), labels=c("95% CI does\nnot contain zero", "95% CI\ncontains zero"))+
-  coord_flip() +xlab(NULL) + ylab("Estimated effect on SESMNTD")+ theme(text = element_text(color = "black", size = 16))+
-  theme(panel.background = element_rect(fill = "white", colour = "black"))+theme(legend.position="none")
+
 
 
 
@@ -3322,7 +3475,7 @@ ggplot(df.summarychit, aes(day, chitinase, color = temperature, shape = food)) +
   facet_wrap(~ph, nrow = 1) +
   geom_line(aes(group = treatment_combo), position = position_dodge(0.3)) +
   geom_errorbar(aes(ymin = chitinase - sd, ymax = chitinase + sd), position = position_dodge(0.3), width = 0.2) +
-  theme_bw() +scale_shape_manual(values=c(16,2)) +
+  theme_bw() +scale_shape_manual(values=c(16,1)) +
   scale_color_manual(values = c("#1f5776", "#c83126")) +
   theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank()) +
   theme(legend.position = "none") 
@@ -3345,7 +3498,7 @@ ggplot(df.summaryprot, aes(day, protease, color = temperature, shape = food)) +
   facet_wrap(~ph, nrow = 1) +
   geom_line(aes(group = treatment_combo), position = position_dodge(0.3)) +
   geom_errorbar(aes(ymin = protease - sd, ymax = protease + sd), position = position_dodge(0.3), width = 0.2) +
-  theme_bw() +scale_shape_manual(values=c(16,2)) +
+  theme_bw() +scale_shape_manual(values=c(16,1)) +
   scale_color_manual(values = c("#1f5776", "#c83126")) +
   theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank()) +
   theme(legend.position = "none") 
@@ -3366,10 +3519,10 @@ ggplot(df.summaryresp, aes(day, respiration_co2_ppm_hr, color = temperature, sha
   facet_wrap(~ph, nrow = 1) +
   geom_line(aes(group = treatment_combo), position = position_dodge(0.3)) +
   geom_errorbar(aes(ymin = respiration_co2_ppm_hr - sd, ymax = respiration_co2_ppm_hr + sd), position = position_dodge(0.3), width = 0.2) +
-  theme_bw() +scale_shape_manual(values=c(16,2)) +
+  theme_bw() +scale_shape_manual(values=c(16,1)) +
   scale_color_manual(values = c("#1f5776", "#c83126")) +
   theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank()) +
-  theme(legend.position = "none") +scale_x_continuous(breaks = c(0, 20, 40))
+  theme(legend.position = "none") 
 
 #### GLMMS ####
 #response = chitinase, protease, respiration
@@ -3394,10 +3547,10 @@ informpriors_prot <- c(prior(normal(6.928552, 0.2161154),
 
 informpriors_resp <- c(prior(normal(7.850019, 1.511284), 
                              class = "Intercept"))
-mchit <- brm(chitinase ~ ph*food*temperature + day,data=meta_all_tubes,
-             family = Gamma(link = "log"), iter = 10000, chains = 4, cores = 4,control = list(adapt_delta = 0.99, stepsize = 0.001, max_treedepth=15),
-             prior=informpriors_chit)
 
+mchit <- brm(chitinase ~ ph*food*temperature+day+ (1|sample_id),data=meta_all_tubes,
+             family = Gamma(link = "log"), iter = 10000, chains = 4, cores = 4,control = list(adapt_delta = 0.999, stepsize = 0.001, max_treedepth=20),
+             prior=informpriors_chit)
 pp_check(mchit)
 
 r2(mchit)
@@ -3406,12 +3559,12 @@ r2(mchit)
 #Marginal R2: 0.390 (95% CI [0.187, 0.605])
 
 meta_all_tubes$protease <- ifelse(meta_all_tubes$protease <= 0, 0.001, meta_all_tubes$protease)
-mprot <- brm(protease ~ ph*food*temperature + day,data=meta_all_tubes,
+mprot <- brm(protease ~ ph*food*temperature + (1|day),data=meta_all_tubes,
              family = Gamma(link = "log"), iter = 10000, chains = 4, cores = 4,control = list(adapt_delta = 0.999, stepsize = 0.001, max_treedepth=20),
              prior=informpriors_prot)
 
 
-mresp <- brm(respiration_co2_ppm_hr ~ ph*food*temperature+ day,data=meta_all_tubes,
+mresp <- brm(respiration_co2_ppm_hr ~ ph*food*temperature+ (1|day),data=meta_all_tubes,
              family = Gamma(link = "log"), iter = 10000, chains = 4, cores = 4,control = list(adapt_delta = 0.999, stepsize = 0.001, max_treedepth=20),
              prior=informpriors_resp)
 
@@ -3420,31 +3573,33 @@ summary(mchit)
 summary(mprot)
 summary(mresp)
 
-saveRDS(mchit, file = "RDS/brms_exp2_chit.RDS")
-saveRDS(mprot, file = "RDS/brms_exp2_prot.RDS")
-saveRDS(mresp, file = "RDS/brms_exp2_resp.RDS")
+saveRDS(mchit, file = "brms_exp2_chit.RDS")
+saveRDS(mprot, file = "brms_exp2_prot.RDS")
+saveRDS(mresp, file = "brms_exp2_resp.RDS")
 
-mchit <- readRDS("RDS/brms_exp2_chit.RDS")
-mprot <- readRDS("RDS/brms_exp2_prot.RDS")
-mresp <- readRDS("RDS/brms_exp2_resp.RDS")
+mchit <- readRDS("brms_exp2_chit.RDS")
+mprot <- readRDS("brms_exp2_prot.RDS")
+mresp <- readRDS("brms_exp2_resp.RDS")
 
 pp_check(mchit)
 pp_check(mprot)
 pp_check(mresp)
 
 ##INTERACTION PLOTS
-chit.pred <- predict_response(mchit3, terms = c("food", "temperature", "ph"))
-chit.pred$facet <- factor(chit.pred$facet, levels = c("3", "4", "5.6"))
+chit.pred <- predict_response(mchit, terms = c("food", "temperature", "ph"))
 
-ggplot(chit.pred, aes(x = x, y = predicted, shape = x, color = group)) + 
+ggplot(chit.pred, aes(x = x, y = predicted, shape = x, color = group)) +
+  geom_point(size = 5, position = position_dodge(width = .7)) + # Dodging the points
   facet_wrap(~facet) +
   scale_color_manual(values = c("#1f5776", "#c83126")) +
-  theme_bw() +scale_shape_manual(values=c(16,2)) +
+  theme_bw() +scale_shape_manual(values=c(16,1)) +
   theme(panel.grid.major = element_blank(),panel.grid.minor = element_blank()) +
-  geom_errorbar(aes(ymin = conf.low, ymax = conf.high), width = 0, size=1,position = position_dodge(width = .7))+
+  geom_errorbar(aes(ymin = conf.low, ymax = conf.high), width = 0, size=2,position = position_dodge(width = .7))+
   theme(legend.position="none")+ ylab("Predicted Chitinase Activity")+
-  xlab("Food (g/L)")+ geom_point(size = 3, position = position_dodge(width = .7)) +theme(
-    text = element_text(color = "black", size = 10 ))
+  xlab("Food (g/L)")+ theme(
+    text = element_text(color = "black", size = 10 )
+  )
+
 
 
 
@@ -3452,13 +3607,14 @@ prot.pred <- ggpredict(mprot, terms = c("food", "temperature", "ph"))
 prot.pred$facet <- factor(prot.pred$facet, levels = c("3", "4", "5.6"))
 
 ggplot(prot.pred, aes(x = x, y = predicted, shape = x, color = group)) +
+  geom_point(size = 5, position = position_dodge(width = .7)) + # Dodging the points
   facet_wrap(~facet) +
   scale_color_manual(values = c("#1f5776", "#c83126")) +
-  theme_bw() +scale_shape_manual(values=c(16,2))+
+  theme_bw() +
   theme(panel.grid.major = element_blank(),panel.grid.minor = element_blank()) +
-  geom_errorbar(aes(ymin = conf.low, ymax = conf.high), width = 0, size=1,position = position_dodge(width = .7))+
+  geom_errorbar(aes(ymin = conf.low, ymax = conf.high), width = 0, size=2,position = position_dodge(width = .7))+
   theme(legend.position="none")+ ylab("Predicted Protease Activity")+
-  xlab("Food (g/L)")+ geom_point(size = 3, position = position_dodge(width = .7)) +theme(
+  xlab("Food (g/L)")+ theme(
     text = element_text(color = "black", size = 10 )
   )
 
@@ -3467,13 +3623,14 @@ resp.pred <- ggpredict(mresp, terms = c("food", "temperature", "ph"))
 resp.pred$facet <- factor(resp.pred$facet, levels = c("3", "4", "5.6"))
 
 ggplot(resp.pred, aes(x = x, y = predicted, shape = x, color = group)) +
+  geom_point(size = 5, position = position_dodge(width = .7)) + # Dodging the points
   facet_wrap(~facet) +
   scale_color_manual(values = c("#1f5776", "#c83126")) +
-  theme_bw() +scale_shape_manual(values=c(16,2))+
+  theme_bw() +
   theme(panel.grid.major = element_blank(),panel.grid.minor = element_blank()) +
-  geom_errorbar(aes(ymin = conf.low, ymax = conf.high), width = 0, size=1,position = position_dodge(width = .7))+
-  theme(legend.position="none")+ ylab("Predicted Respir")+
-  xlab("Food (g/L)")+ geom_point(size = 3, position = position_dodge(width = .7)) +theme(
+  geom_errorbar(aes(ymin = conf.low, ymax = conf.high), width = 0, size=2,position = position_dodge(width = .7))+
+  theme(legend.position="none")+ ylab("Predicted Respiration")+
+  xlab("Food (g/L)")+ theme(
     text = element_text(color = "black", size = 10 ))+ylim(c(0,35000))
 
 #Directional Effect of food on respiration
@@ -3487,42 +3644,30 @@ nrow(highfood)/nrow(posterior_mresp)*100
 posteriorchit <- mcmc_intervals_data(mchit, 
                                   prob_outer=0.95,
                                   prob=0.5)
+
 posteriorchit$nonzero <- NA
 posteriorchit$nonzero[posteriorchit$ll>0 & posteriorchit$hh>0] <- "nonzero"
 posteriorchit$nonzero[posteriorchit$ll<0 & posteriorchit$hh<0] <- "nonzero"
 posteriorchit$nonzero[is.na(posteriorchit$nonzero)] <- "zero"
 posteriorchit<- posteriorchit[1:13,]
 
-posteriorchit <- posteriorchit %>%
-  mutate(parameter = str_remove(parameter, "^b_") %>%  # Remove "b_" prefix
-           str_replace_all(":", ": ") %>%
-           str_replace_all("ph3", "pH 3") %>%
-           str_replace_all("ph4", "pH 4") %>%
-           str_replace_all("food6", "high food") %>%
-           str_replace_all("temperature37", "high temp"))
-
-posteriorchit <- posteriorchit %>%
-  mutate(parameter = factor(parameter, 
-                            levels = c("Intercept", 
-                                       "day",
-                                       "high temp", 
-                                       "high food", 
-                                       "pH 3", 
-                                       "pH 4", 
-                                       "pH 3: high food", 
-                                       "pH 4: high food", 
-                                       "pH 3: high temp", 
-                                       "pH 4: high temp", 
-                                       "high food: high temp", 
-                                       "pH 3: high food: high temp", 
-                                       "pH 4: high food: high temp")))
-
-ggplot(posteriorchit, aes(x = parameter, shape=nonzero)) +
-  geom_hline(yintercept = 0, linetype = 2, size=.35, color = "black") +
-  geom_pointrange(aes(ymin = ll, ymax = hh, y = m), position= position_dodge(width=0.75), size = 1, linewidth = 1) +
-  scale_shape_manual(values=c(17, 19), labels=c("95% CI does\nnot contain zero", "95% CI\ncontains zero"))+
-  coord_flip() +xlab(NULL) + ylab("Estimated effect on Chitinase Activity")+ theme(text = element_text(color = "black", size = 16))+
-  theme(panel.background = element_rect(fill = "white", colour = "black"))+theme(legend.position="none")
+ggplot(posteriorchit, aes(x = parameter,
+                       shape=nonzero)) +
+  geom_hline(yintercept = 0, linetype = 3, 
+             size=1, color = "#b0b5b3") +
+  geom_pointrange(aes(ymin = ll, ymax = hh, y = m),
+                  position= position_dodge(width=0.75),
+                  size = 3/4) +
+  scale_shape_manual(values=c(17, 19), 
+                     labels=c("95% CI does\nnot contain zero", 
+                              "95% CI\ncontains zero"))+
+  coord_flip() +
+  xlab(NULL) +
+  ylab("Estimated effect on Chitinase Activity")+
+  theme(
+    text = element_text(color = "black", size = 16 ))+
+theme(panel.background = element_rect(fill = "white", colour = "black"))+
+  theme(legend.position="none")
 
 #PROTEASE MODEL
 posteriorprot <- mcmc_intervals_data(mprot, 
@@ -3533,40 +3678,24 @@ posteriorprot$nonzero <- NA
 posteriorprot$nonzero[posteriorprot$ll>0 & posteriorprot$hh>0] <- "nonzero"
 posteriorprot$nonzero[posteriorprot$ll<0 & posteriorprot$hh<0] <- "nonzero"
 posteriorprot$nonzero[is.na(posteriorprot$nonzero)] <- "zero"
-posteriorprot<- posteriorprot[1:13,]
+posteriorprot<- posteriorprot[1:12,]
 
-posteriorprot <- posteriorprot %>%
-  mutate(parameter = str_remove(parameter, "^b_") %>%  # Remove "b_" prefix
-           str_replace_all(":", ": ") %>%
-           str_replace_all("ph3", "pH 3") %>%
-           str_replace_all("ph4", "pH 4") %>%
-           str_replace_all("food6", "high food") %>%
-           str_replace_all("temperature37", "high temp"))
-
-posteriorprot <- posteriorprot %>%
-  mutate(parameter = factor(parameter, 
-                            levels = c("Intercept", 
-                                       "day",
-                                       "high temp", 
-                                       "high food", 
-                                       "pH 3", 
-                                       "pH 4", 
-                                       "pH 3: high food", 
-                                       "pH 4: high food", 
-                                       "pH 3: high temp", 
-                                       "pH 4: high temp", 
-                                       "high food: high temp", 
-                                       "pH 3: high food: high temp", 
-                                       "pH 4: high food: high temp")))
-
-ggplot(posteriorprot, aes(x = parameter, shape=nonzero)) +
-  geom_hline(yintercept = 0, linetype = 2, size=.35, color = "black") +
-  geom_pointrange(aes(ymin = ll, ymax = hh, y = m), position= position_dodge(width=0.75), size = 1, linewidth = 1) +
-  scale_shape_manual(values=c(17, 19), labels=c("95% CI does\nnot contain zero", "95% CI\ncontains zero"))+
-  coord_flip() +xlab(NULL) + ylab("Estimated effect on Protease Activity")+ theme(text = element_text(color = "black", size = 16))+
-  theme(panel.background = element_rect(fill = "white", colour = "black"))+theme(legend.position="none")
-
-
+ggplot(posteriorprot, aes(x = parameter,
+                          shape=nonzero)) +
+  geom_hline(yintercept = 0, linetype = 3, 
+             size=1, color = "#b0b5b3") +
+  geom_pointrange(aes(ymin = ll, ymax = hh, y = m),
+                  position= position_dodge(width=0.75),
+                  size = 3/4) +
+  scale_shape_manual(values=c(17, 19), 
+                     labels=c("95% CI does\nnot contain zero", 
+                              "95% CI\ncontains zero"))+
+  coord_flip() +
+  xlab(NULL) +
+  ylab("Estimated effect on Protease Activity")+
+  theme(text = element_text(color = "black", size = 16 ))+
+  theme(panel.background = element_rect(fill = "white", colour = "black"))+
+  theme(legend.position="none")
 
 #RESPIRATION MODEL
 posteriorresp <- mcmc_intervals_data(mresp, 
@@ -3577,35 +3706,42 @@ posteriorresp$nonzero <- NA
 posteriorresp$nonzero[posteriorresp$ll>0 & posteriorresp$hh>0] <- "nonzero"
 posteriorresp$nonzero[posteriorresp$ll<0 & posteriorresp$hh<0] <- "nonzero"
 posteriorresp$nonzero[is.na(posteriorresp$nonzero)] <- "zero"
-posteriorresp<- posteriorresp[1:13,]
-
-posteriorresp <- posteriorresp %>%
-  mutate(parameter = str_remove(parameter, "^b_") %>%  # Remove "b_" prefix
-           str_replace_all(":", ": ") %>%
-           str_replace_all("ph3", "pH 3") %>%
-           str_replace_all("ph4", "pH 4") %>%
-           str_replace_all("food6", "high food") %>%
-           str_replace_all("temperature37", "high temp"))
-
-posteriorresp <- posteriorresp %>%
-  mutate(parameter = factor(parameter, 
-                            levels = c("Intercept", 
-                                       "day",
-                                       "high temp", 
-                                       "high food", 
-                                       "pH 3", 
-                                       "pH 4", 
-                                       "pH 3: high food", 
-                                       "pH 4: high food", 
-                                       "pH 3: high temp", 
-                                       "pH 4: high temp", 
-                                       "high food: high temp", 
-                                       "pH 3: high food: high temp", 
-                                       "pH 4: high food: high temp")))
+posteriorresp<- posteriorresp[1:12,]
 
 ggplot(posteriorresp, aes(x = parameter, shape=nonzero)) +
-  geom_hline(yintercept = 0, linetype = 2, size=.35, color = "black") +
-  geom_pointrange(aes(ymin = ll, ymax = hh, y = m), position= position_dodge(width=0.75), size = 1, linewidth = 1) +
+  geom_hline(yintercept = 0, linetype = 3, size=1, color = "#b0b5b3") +
+  geom_pointrange(aes(ymin = ll, ymax = hh, y = m), position= position_dodge(width=0.75), size = 3/4) +
   scale_shape_manual(values=c(17, 19), labels=c("95% CI does\nnot contain zero", "95% CI\ncontains zero"))+
-  coord_flip() +xlab(NULL) + ylab("Estimated effect on Respiration")+ theme(text = element_text(color = "black", size = 16))+
+  coord_flip() +xlab(NULL) + ylab("Estimated effect on Respiration")+ theme(text = element_text(color = "black", size = 16 ))+
   theme(panel.background = element_rect(fill = "white", colour = "black"))+theme(legend.position="none")
+
+
+#EFFECTIVE NUMBER OF SPECIES MODEL
+posteriormens <- mcmc_intervals_data(mens, 
+                                     prob_outer=0.95,
+                                     prob=0.5)
+
+posteriormens$nonzero <- NA
+posteriormens$nonzero[posteriormens$ll>0 & posteriormens$hh>0] <- "nonzero"
+posteriormens$nonzero[posteriormens$ll<0 & posteriormens$hh<0] <- "nonzero"
+posteriormens$nonzero[is.na(posteriormens$nonzero)] <- "zero"
+posteriormens<- posteriormens[1:12,]
+
+ggplot(posteriormens, aes(x = parameter,
+                          shape=nonzero)) +
+  geom_hline(yintercept = 0, linetype = 3, 
+             size=1, color = "#b0b5b3") +
+  geom_pointrange(aes(ymin = ll, ymax = hh, y = m),
+                  position= position_dodge(width=0.75),
+                  size = 3/4) +
+  scale_shape_manual(values=c(17, 19), 
+                     labels=c("95% CI does\nnot contain zero", 
+                              "95% CI\ncontains zero"))+
+  coord_flip() +
+  theme(axis.text.y = element_text( size=7), 
+        axis.text.x=element_text(size=7),
+        axis.title = element_text(size=7), 
+        legend.text = element_text(size=7)) +
+  xlab(NULL) +
+  ylab("Estimated effect on Effective Number of ASVs")+
+  theme(panel.background = element_rect(fill = "white", colour = "black"))
