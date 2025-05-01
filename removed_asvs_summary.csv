@@ -1,0 +1,98 @@
+"ASV","Reason","Taxon","Confidence"
+"0649da7b67156aed2b87a455e44c6a3c","Contaminant","d__Bacteria; p__Proteobacteria; c__Gammaproteobacteria; o__Burkholderiales; f__Oxalobacteraceae; g__Collimonas",0.981828254724413
+"06f825b512d903b9230e1a55d87359ee","Contaminant","d__Bacteria; p__Firmicutes; c__Bacilli; o__Lactobacillales; f__Streptococcaceae; g__Streptococcus",0.999840520900978
+"08bdc6c81f6b9daab3d132b54e1d45bc","Contaminant","d__Bacteria; p__Actinobacteriota; c__Actinobacteria; o__Corynebacteriales; f__Nocardiaceae; g__Rhodococcus",0.999999773683684
+"0e4b96294f2a2985a5d7fd8c87f7ce6d","Contaminant","d__Bacteria; p__Bacteroidota; c__Bacteroidia; o__Sphingobacteriales; f__Sphingobacteriaceae; g__Pedobacter",0.994980681850541
+"107273e73071282e4d0f4a0b46548da5","Contaminant","d__Bacteria; p__Proteobacteria; c__Gammaproteobacteria; o__Aeromonadales; f__Aeromonadaceae; g__Aeromonas",0.970847009241813
+"1ec92d671ccfd5d924650b622d772b96","Contaminant","d__Bacteria; p__Proteobacteria; c__Alphaproteobacteria; o__Rhizobiales; f__Rhizobiaceae; g__Pseudochrobactrum",0.971883970177171
+"2b05a6e9e6c580f7fc168a5bbb29de2d","Contaminant","d__Bacteria; p__Bacteroidota; c__Bacteroidia; o__Cytophagales; f__Spirosomaceae; g__Arcicella; s__uncultured_bacterium",0.882903366434535
+"3481fa43fe5fba6aecdc7f9aae6ed9c0","Contaminant","d__Bacteria; p__Proteobacteria; c__Gammaproteobacteria; o__Enterobacterales; f__Yersiniaceae",0.997476718177388
+"37f60e1f5a72f3aa23ee073f1d36cab2","Contaminant","d__Bacteria; p__Proteobacteria; c__Gammaproteobacteria; o__Enterobacterales; f__Enterobacteriaceae",0.977688536228637
+"3ba9c0ce507ff73b0df440fad87c9d98","Contaminant","d__Bacteria; p__Proteobacteria; c__Alphaproteobacteria; o__Rickettsiales; f__Rickettsiaceae; g__Rickettsia",0.941349162209003
+"487de539f50da640cd8914cea7821561","Contaminant","d__Bacteria; p__Proteobacteria; c__Alphaproteobacteria; o__Rhizobiales; f__Devosiaceae; g__Devosia",0.938303114570642
+"55fcef7016326a10d2bc44d69cf8ea38","Contaminant","d__Bacteria; p__Proteobacteria; c__Gammaproteobacteria; o__Burkholderiales; f__Comamonadaceae",0.999984974474408
+"5648dccee530d68ceb3e4d7d22cf8756","Contaminant","d__Bacteria; p__Proteobacteria; c__Gammaproteobacteria; o__Pseudomonadales; f__Pseudomonadaceae; g__Pseudomonas",0.99993203427852
+"592e7630b2e58f0bcb2a3f9cccb07ceb","Contaminant","d__Bacteria; p__Proteobacteria; c__Gammaproteobacteria; o__Burkholderiales; f__Chitinibacteraceae; g__Iodobacter",0.999987274525517
+"5c061dc8bafe80b5767222e204384886","Contaminant","d__Bacteria; p__Proteobacteria; c__Alphaproteobacteria; o__Rhizobiales; f__Rhizobiaceae; g__Pseudochrobactrum",0.968471519909284
+"62727dc7f1b9c5878de3da94b2977f05","Contaminant","d__Bacteria; p__Proteobacteria; c__Alphaproteobacteria; o__Rhizobiales; f__Rhizobiaceae; g__Ochrobactrum",0.761028115860388
+"6376ea6dab7d0fde3cd66f53b57e1484","Contaminant","d__Bacteria; p__Proteobacteria; c__Gammaproteobacteria; o__Pseudomonadales; f__Pseudomonadaceae; g__Pseudomonas",0.999896098538262
+"65d43491988bfe557da4d86a5ba25dae","Contaminant","d__Bacteria; p__Firmicutes; c__Bacilli; o__Staphylococcales; f__Staphylococcaceae; g__Staphylococcus",0.999128990621019
+"6e35a55b3c00d52898de19884bb23bdb","Contaminant","d__Bacteria; p__Proteobacteria; c__Alphaproteobacteria; o__Rickettsiales; f__Rickettsiaceae; g__Rickettsia",0.89849561434516
+"7bcdcc128a296b3f5b5b3848a75b9f30","Contaminant","d__Bacteria; p__Proteobacteria; c__Gammaproteobacteria; o__Burkholderiales; f__Comamonadaceae",0.999984641344845
+"7ea4b157e51f38c83a0693ce6ea70f53","Contaminant","d__Bacteria; p__Proteobacteria; c__Alphaproteobacteria; o__Rhizobiales; f__Rhizobiaceae; g__Ochrobactrum",0.932840653674444
+"8b5884acc8c736df09c4260b50dc9297","Contaminant","d__Bacteria; p__Proteobacteria; c__Gammaproteobacteria; o__Pseudomonadales; f__Pseudomonadaceae; g__Pseudomonas",0.999774286349328
+"92d43275bdbee71a13c1373e48b63fc4","Contaminant","d__Bacteria; p__Proteobacteria; c__Gammaproteobacteria; o__Burkholderiales; f__Comamonadaceae",0.999992164799375
+"945184b6386c192c0066e0a98a154780","Contaminant","d__Bacteria; p__Proteobacteria; c__Gammaproteobacteria; o__Enterobacterales; f__Enterobacteriaceae",0.922859282949843
+"99e433a3ce4d5290445f668df2c9147e","Contaminant","d__Bacteria; p__Proteobacteria; c__Gammaproteobacteria; o__Pseudomonadales; f__Pseudomonadaceae; g__Pseudomonas",0.999991064563124
+"9eab7a1249300ee6e9757c224201f94d","Contaminant","d__Bacteria; p__Proteobacteria; c__Gammaproteobacteria; o__Xanthomonadales; f__Xanthomonadaceae; g__Stenotrophomonas; s__uncultured_organism",0.745415744166661
+"b4bb370a59f2637d406ccc0f5a1b2a1e","Contaminant","d__Bacteria; p__Proteobacteria; c__Gammaproteobacteria; o__Enterobacterales; f__Morganellaceae; g__Morganella",0.993608511807982
+"b503d76e5f6f07ddb15148a5631658e8","Contaminant","d__Bacteria; p__Actinobacteriota; c__Actinobacteria; o__Micrococcales; f__Microbacteriaceae; g__Leucobacter",0.779540105540979
+"d15bc449222795a9ff230013aa633686","Contaminant","d__Bacteria; p__Proteobacteria; c__Gammaproteobacteria; o__Pseudomonadales; f__Moraxellaceae; g__Acinetobacter",0.997690018668277
+"d81f15a91ece19add8ce1bf156b1b7d2","Contaminant","d__Bacteria; p__Bdellovibrionota; c__Oligoflexia; o__Silvanigrellales; f__Silvanigrellaceae; g__Silvanigrella",0.999895473292345
+"ecc423b8fefd03a92aa1a97fc74a654c","Contaminant","d__Bacteria; p__Proteobacteria; c__Gammaproteobacteria; o__Burkholderiales; f__Alcaligenaceae; g__Achromobacter",0.756869658501232
+"efbe1f58b1e2984ddc53a64f047d94ff","Contaminant","d__Bacteria; p__Proteobacteria; c__Gammaproteobacteria; o__Burkholderiales; f__Oxalobacteraceae; g__Janthinobacterium",0.860802927315135
+"f4801b7a68515d9005fa572ee6afdf41","Contaminant","d__Bacteria; p__Proteobacteria; c__Gammaproteobacteria; o__Burkholderiales; f__Burkholderiaceae; g__Ralstonia",0.985006691631281
+"f8aeec3c1ff0f4e7e1c829e4db0618d9","Contaminant","d__Bacteria; p__Proteobacteria; c__Gammaproteobacteria; o__Pseudomonadales; f__Pseudomonadaceae; g__Pseudomonas",0.999712120488383
+"fccbdff8fac6bb4a77fa3e3d96e7ec2a","Contaminant","d__Bacteria; p__Bacteroidota; c__Bacteroidia; o__Flavobacteriales; f__Weeksellaceae; g__Chryseobacterium",0.999994787568519
+"fe8d1e67790b18f7c5b3fa1d13d4061c","Contaminant","d__Bacteria; p__Bacteroidota; c__Bacteroidia; o__Flavobacteriales; f__Weeksellaceae; g__Chryseobacterium",0.999985951418437
+"ffbd119a0c12de29a3c989155a3783dd","Contaminant","d__Bacteria; p__Proteobacteria; c__Gammaproteobacteria; o__Burkholderiales; f__Chitinibacteraceae; g__Deefgea; s__uncultured_bacterium",0.728894337752002
+"019245104ed4e1a751a760748c8a5205","Chloroplast","d__Bacteria; p__Cyanobacteria; c__Cyanobacteriia; o__Chloroplast; f__Chloroplast; g__Chloroplast",0.999999999999982
+"0745881dfd030f13bfcd0eac97546886","Chloroplast","d__Bacteria; p__Cyanobacteria; c__Cyanobacteriia; o__Chloroplast; f__Chloroplast; g__Chloroplast",1
+"11b92c472ea08a2ac3f0de9aad1d03ab","Chloroplast","d__Bacteria; p__Cyanobacteria; c__Cyanobacteriia; o__Chloroplast; f__Chloroplast; g__Chloroplast",0.99999998311094
+"15210dac7358c225c1d261007a9a9d16","Chloroplast","d__Bacteria; p__Cyanobacteria; c__Cyanobacteriia; o__Chloroplast; f__Chloroplast; g__Chloroplast; s__Chloropicon_primus",0.999998421161034
+"1b83b1af907585096e36bd46752777f2","Chloroplast","d__Bacteria; p__Cyanobacteria; c__Cyanobacteriia; o__Chloroplast; f__Chloroplast; g__Chloroplast; s__uncultured_marine",0.999760709537497
+"248786aa68edceb0f7a2047d0a771f64","Chloroplast","d__Bacteria; p__Cyanobacteria; c__Cyanobacteriia; o__Chloroplast; f__Chloroplast; g__Chloroplast",0.999999999977118
+"2b4e42660e77a5154333e80652c0988e","Chloroplast","d__Bacteria; p__Cyanobacteria; c__Cyanobacteriia; o__Chloroplast; f__Chloroplast; g__Chloroplast",0.999999999999999
+"30f6e633bc389ef16701e70ef28a02cb","Chloroplast","d__Bacteria; p__Cyanobacteria; c__Cyanobacteriia; o__Chloroplast; f__Chloroplast; g__Chloroplast; s__uncultured_marine",0.999511498491587
+"3e9dbcc280c75eb714fb91366c213bfb","Chloroplast","d__Bacteria; p__Cyanobacteria; c__Cyanobacteriia; o__Chloroplast; f__Chloroplast; g__Chloroplast",0.999999999999994
+"42016433985454f3186dde297fc37eb6","Chloroplast","d__Bacteria; p__Cyanobacteria; c__Cyanobacteriia; o__Chloroplast; f__Chloroplast; g__Chloroplast; s__Trachydiscus_minutus",0.9991197841423
+"4a0b292ba716582f9af46694458c0b9b","Chloroplast","d__Bacteria; p__Cyanobacteria; c__Cyanobacteriia; o__Chloroplast; f__Chloroplast; g__Chloroplast",0.999999999999999
+"680032ee2be3f9fcd320ab56108c7867","Chloroplast","d__Bacteria; p__Cyanobacteria; c__Cyanobacteriia; o__Chloroplast; f__Chloroplast; g__Chloroplast",0.966317699474509
+"6e8e3621cdda8cf96216ef12ff463413","Chloroplast","d__Bacteria; p__Cyanobacteria; c__Cyanobacteriia; o__Chloroplast; f__Chloroplast; g__Chloroplast",0.999999998365687
+"999ca4020d82bc0863be4d03cd9470b1","Chloroplast","d__Bacteria; p__Cyanobacteria; c__Cyanobacteriia; o__Chloroplast; f__Chloroplast; g__Chloroplast",1
+"9ca10d0df0c8ecc7364ad81775a6075a","Chloroplast","d__Bacteria; p__Cyanobacteria; c__Cyanobacteriia; o__Chloroplast; f__Chloroplast; g__Chloroplast",0.999999998563018
+"a119904cba206dff93819dfe80d8e16c","Chloroplast","d__Bacteria; p__Cyanobacteria; c__Cyanobacteriia; o__Chloroplast; f__Chloroplast; g__Chloroplast",0.999999999999996
+"a18b8689b745c96b9aa9f0bd947e98c7","Chloroplast","d__Bacteria; p__Cyanobacteria; c__Cyanobacteriia; o__Chloroplast; f__Chloroplast; g__Chloroplast; s__unidentified_rhodophyte",0.990066341243037
+"b4f9bee3ba135187027c5b2d05fa7cdc","Chloroplast","d__Bacteria; p__Cyanobacteria; c__Cyanobacteriia; o__Chloroplast; f__Chloroplast; g__Chloroplast",0.998047477644843
+"c28ab480eb7e125aeee85de2c3f92ba2","Chloroplast","d__Bacteria; p__Cyanobacteria; c__Cyanobacteriia; o__Chloroplast; f__Chloroplast; g__Chloroplast; s__Mychonastes_jurisii",0.999999999999986
+"e1b2b6ae4af6686429c21926cc0314a0","Chloroplast","d__Bacteria; p__Cyanobacteria; c__Cyanobacteriia; o__Chloroplast; f__Chloroplast; g__Chloroplast",0.999999999999995
+"e6dd8c401e4392a0cfb65bbce7dc41f4","Chloroplast","d__Bacteria; p__Cyanobacteria; c__Cyanobacteriia; o__Chloroplast; f__Chloroplast; g__Chloroplast",1
+"ec9562edcf3986f9a56ee377d8ff737c","Chloroplast","d__Bacteria; p__Cyanobacteria; c__Cyanobacteriia; o__Chloroplast; f__Chloroplast; g__Chloroplast",1.00000000000001
+"f698bc60e827ed25fbba1b6bc4745a33","Chloroplast","d__Bacteria; p__Cyanobacteria; c__Cyanobacteriia; o__Chloroplast; f__Chloroplast; g__Chloroplast; s__Nannochloropsis_gaditana",0.978482451113835
+"fa26bf85a3bd5845ba80307bb7aa5afa","Chloroplast","d__Bacteria; p__Cyanobacteria; c__Cyanobacteriia; o__Chloroplast; f__Chloroplast; g__Chloroplast",0.999999999999995
+"fba3e00a0b8c31631f62370ee1a79703","Chloroplast","d__Bacteria; p__Cyanobacteria; c__Cyanobacteriia; o__Chloroplast; f__Chloroplast; g__Chloroplast",0.999999999999993
+"1cdff3b3718ef7209ffc1353307851d9","Mitochondria","d__Bacteria; p__Proteobacteria; c__Alphaproteobacteria; o__Rickettsiales; f__Mitochondria; g__Mitochondria; s__Periglandula_ipomoeae",0.70429108403547
+"314f4b545da59ca32345f4289138aa8c","Mitochondria","d__Bacteria; p__Proteobacteria; c__Alphaproteobacteria; o__Rickettsiales; f__Mitochondria; g__Mitochondria",0.999999996662911
+"4cbffaa65a42b93e577aca5952dac733","Mitochondria","d__Bacteria; p__Proteobacteria; c__Alphaproteobacteria; o__Rickettsiales; f__Mitochondria; g__Mitochondria; s__Penicillium_sp.",0.999858325971074
+"600cecd48e3c455a1c65930960b279dc","Mitochondria","d__Bacteria; p__Proteobacteria; c__Alphaproteobacteria; o__Rickettsiales; f__Mitochondria; g__Mitochondria; s__Botryosphaeria_dothidea",0.976575725777752
+"773a8f897713f46436d512475c69c597","Mitochondria","d__Bacteria; p__Proteobacteria; c__Alphaproteobacteria; o__Rickettsiales; f__Mitochondria; g__Mitochondria; s__Fusarium_circinatum",0.729440036639675
+"aa73d2c485650f5c8e5ba227daccb6f1","Mitochondria","d__Bacteria; p__Proteobacteria; c__Alphaproteobacteria; o__Rickettsiales; f__Mitochondria; g__Mitochondria; s__Botryosphaeria_dothidea",0.999689050907691
+"d297fafcb11e3ea8254ea3edb7035dec","Mitochondria","d__Bacteria; p__Proteobacteria; c__Alphaproteobacteria; o__Rickettsiales; f__Mitochondria; g__Mitochondria",0.999999992417685
+"f52cc1224cac807cd42d9a901ed53c9b","Mitochondria","d__Bacteria; p__Proteobacteria; c__Alphaproteobacteria; o__Rickettsiales; f__Mitochondria; g__Mitochondria; s__Arachis_hypogaea",0.818272670481539
+"06373c82c15a99b93def846cdc39bf8a","Eukaryota","d__Eukaryota",0.736451167767602
+"3563366b32bc40819cc960a6332cbdda","Eukaryota","d__Eukaryota",0.701387340940289
+"40bd1f3908fa2983004fb6dbfcc5cdce","Eukaryota","d__Eukaryota; p__Opalinata; c__Opalinata; o__Opalinata; f__Opalinata; g__Opalinata; s__Opalina_undulata",0.918949635274688
+"64de6bf9cfbf37a91ab0ca324b44829c","Eukaryota","d__Eukaryota; p__Microsporidia; c__Microsporidia; o__Microsporidia; f__Microsporidia; g__Microsporidia; s__Senoma_globulifera",0.923497160173012
+"801f1a61adf68c3a1932f432ae4b0d52","Eukaryota","d__Eukaryota",0.948607696059034
+"ef5bed1ca19db9fab63b4b83f645913c","Eukaryota","d__Eukaryota; p__Microsporidia; c__Microsporidia; o__Microsporidia; f__Microsporidia; g__Microsporidia; s__Microsporidium_sp.",0.94695106464802
+"ffa8627e4ade79b982cf5555b9ce1a01","Eukaryota","d__Eukaryota",0.757256254479464
+"17f04900bc23e4d8bc28bb77659cd448","Archaea","d__Archaea; p__Crenarchaeota; c__Nitrososphaeria; o__Nitrosopumilales; f__Nitrosopumilaceae",0.999999999999363
+"c72360e304518f898d28f7ed166fac72","Archaea","d__Archaea; p__Euryarchaeota; c__Methanobacteria; o__Methanobacteriales; f__Methanobacteriaceae; g__Methanobrevibacter",0.998359654060582
+"0140b511b407ac82e0b7a37e3f3ae784","Unassigned","Unassigned",0.645250334036853
+"01dfc63de8b1b93efba7490bebf942f2","Unassigned","Unassigned",0.746079061964535
+"2ae3e20327604aa0a446be5d0fcecbc1","Unassigned","Unassigned",0.422779328682493
+"483abb0d27eae2dc919e1238463ddcb7","Unassigned","Unassigned",0.50104276761195
+"4c6e5dfa9536c0ecfc533591701b7def","Unassigned","Unassigned",0.433066327290728
+"52544d6052478ea37f21cfce3edce34a","Unassigned","Unassigned",0.595294868099789
+"5850555fb6db53953d9637032944e90d","Unassigned","Unassigned",0.638389561285668
+"6283478ee4038101f96fba3ec2fe640f","Unassigned","Unassigned",0.739884883560498
+"7a16a865b189876aa53e840fc50e491f","Unassigned","Unassigned",0.745368982854766
+"8824bf67610d6e3e1b5a1801e0330b0c","Unassigned","Unassigned",0.367805939282653
+"8f55da0ec8b302b473b6d061aad8a0d3","Unassigned","Unassigned",0.374415435477256
+"9c09598d64a58b908fb1a749f68bd825","Unassigned","Unassigned",0.308168101594595
+"b1fafec2e9176e0d26f255a54419a3bc","Unassigned","Unassigned",0.511251258715651
+"c42e482c106b2b58a95d8944c5bc9fd8","Unassigned","Unassigned",0.760598200212787
+"cab1f4686c6a7b1d82273d7ec9c8f657","Unassigned","Unassigned",0.865762446078924
+"d827926d1785eae657c1e6146264e5d8","Unassigned","Unassigned",0.636656057258962
+"e4847ccb270649a56ceb33a8dd911815","Unassigned","Unassigned",0.545335820135129
+"f944ab11fb99ff7f4d59248e099bd235","Unassigned","Unassigned",0.575777543651514

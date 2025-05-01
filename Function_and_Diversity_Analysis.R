@@ -1,6 +1,6 @@
 #### Community Assembly and Functioning under Environmental Stress ####
-#### Authors: Jessica R. Bernardin, Leonora S. Bittleston ####
-#### last update : Feb 28, 2025 ####
+#### Author: Jessica R. Bernardin ####
+#### last update : May 1, 2025 ####
 
 #### Load Required Packages ####
 packages_to_load <- c(
@@ -49,7 +49,7 @@ setwd(this.path::here())
 
 #### Community Structure ####
 #read in 16S
-asv16s <- read_tsv("exported-files/asv-table-dada2.txt")
+asv16s <- read_tsv("metabarcoding_data/asv-table-dada2.txt")
 asv16s <- asv16s %>% column_to_rownames(var="#OTU ID")
 
 meta <- read_csv("data/Exp_2_metadata_tubes.csv")
@@ -60,7 +60,7 @@ meta$scaled_chit <- as.numeric(scale(meta$chitinase))
 meta$scaled_prot <- as.numeric(scale(meta$protease))
 meta$sample_id <- as.factor(meta$sample_id)
 
-tax.16s <- read_tsv("exported-files/taxonomy.tsv")
+tax.16s <- read_tsv("metabarcoding_data/taxonomy.tsv")
 tax.16s <- tax.16s %>% column_to_rownames(var="Feature ID")
 tax.16s <- tax.16s[order(rownames(tax.16s)), ]
 asv16s <- asv16s[order(rownames(asv16s)), ]
@@ -69,7 +69,7 @@ row.names(asv16s) == row.names(tax.16s) # sanity check
 nrow(asv16s) #=3342 ASVs
 nrow(tax.16s) #=3342 ASVs
 
-asv16s.tree <- read.tree("exported-files/tree_sepp.nwk")
+asv16s.tree <- read.tree("metabarcoding_data/tree_sepp.nwk")
 asv16s.tree <-root(asv16s.tree, "63ffc596781727668a90d6da135a33b4")## root with an archaeon
 
 asv16s.exp2 <- asv16s %>%
@@ -77,7 +77,6 @@ asv16s.exp2 <- asv16s %>%
 dim(asv16s.exp2)#1585 asvs, 152 samples
 
 tax.16s.exp2 <- subset(tax.16s, row.names(tax.16s) %in% rownames(asv16s.exp2)) 
-
 tax.16s.exp2 <- tax.16s.exp2[order(rownames(tax.16s.exp2)), ]
 asv16s.exp2 <- asv16s.exp2[order(rownames(asv16s.exp2)), ]
 
@@ -147,21 +146,30 @@ count_non_zero <- function(row) {
 }
 cont.prev.true.reads$NonZeroCount <- apply(cont.prev.true.reads[, -1], MARGIN = 1, count_non_zero)
 
+#### TABLE OF ASVs REMOVED ####
+removed <- list(
+  Decontam_pkg = rownames(cont.prev.true.reads),
+  Chloroplast = rownames(tax.16s.exp2[grep("Chloroplast", tax.16s.exp2$Taxon),]),
+  Mitochondria = rownames(tax.16s.exp2[grep("Mitochondria", tax.16s.exp2$Taxon),]),
+  Eukaryota = rownames(tax.16s.exp2[grep("Eukaryota", tax.16s.exp2$Taxon),]),
+  Archaea = rownames(tax.16s.exp2[grep("Archaea", tax.16s.exp2$Taxon),]),
+  Unassigned = rownames(tax.16s.exp2[grep("Unassigned", tax.16s.exp2$Taxon),])
+)
+
+removal_table <- do.call(rbind, lapply(names(removed), \(r)
+                                       data.frame(ASV = removed[[r]], Reason = r, tax.16s.exp2[removed[[r]], , drop = FALSE])
+))
+
+write.csv(removal_table, "output_files/removed_asvs_summary.csv", row.names = FALSE)
+
 #### Clean up data ####
 #these 37 ASV have low frequency and low abundance and were closely associated with the negative controls, they will be removed from the dataset
 cont.tax <- subset(tax.16s.exp2, row.names(tax.16s.exp2) %in% rownames(cont.prev.true.reads))
 
-# remove chloroplasts
 tax.16s.exp2.2 <- tax.16s.exp2[grep("Chloroplast",tax.16s.exp2$Taxon, invert = T),]#25 removed
-
-# remove mitochondria
 tax.16s.exp2.2 <- tax.16s.exp2.2[grep("Mitochondria",tax.16s.exp2.2$Taxon, invert = T),] #removed 8 ASVs
-
 tax.16s.exp2.2 <- tax.16s.exp2.2[grep("Eukaryota",tax.16s.exp2.2$Taxon, invert = T),]#7 removed
-
 tax.16s.exp2.2 <- tax.16s.exp2.2[grep("Archaea",tax.16s.exp2.2$Taxon, invert = T),]#2 removed
-
-# remove unassigned
 tax.16s.exp2.2 <- tax.16s.exp2.2[grep("Unassigned",tax.16s.exp2.2$Taxon, invert = T),]#18 removed
 
 #remove contaminants identified above
@@ -294,7 +302,6 @@ ggplot(df.summaryrich, aes(day, richness, color = temperature, shape = food)) +
   theme(legend.position = "none") +
   scale_y_continuous(limits = c(20, 80), breaks = c(20, 40, 60, 80))
 
-
 #### GLM ASV Richness ####
 md16s$food <- relevel(md16s$food, ref = "3")
 md16s$temperature <- relevel(md16s$temperature, ref = "22")
@@ -328,7 +335,6 @@ ggplot(rich.pred, aes(x = x, y = predicted, shape = x, color = group)) +
   scale_y_continuous(limits = c(20, 80), breaks = c(20, 40, 60, 80))
 
 tab_model(mrich)
-
 tab_model(mrich, show.est = TRUE, show.ci = TRUE, show.se = TRUE, 
           file = "output_files/brms_richness_table.doc")
 
@@ -388,7 +394,6 @@ r.OTU.16s <- otu_table(as.matrix(asv16s.r), taxa_are_rows = TRUE)
 r.SAM.16s <- sample_data(meta.r)
 Exp2.physeq3 <-merge_phyloseq(phyloseq(r.OTU.16s),r.SAM.16s,r.TAX.16s,r.new_tree)
 Exp2.physeq3
-#1009 taxa and 148 samples
 saveRDS(Exp2.physeq3, "RDS/Exp2.physeq3.RDS")
 Exp2.physeq3 <- readRDS("RDS/Exp2.physeq3.RDS")
 
@@ -408,7 +413,7 @@ mixonly.meta <- data.frame(sample_data(Exp2.tubes.mix2.physeq3))
 Exp2.tubes.nomix.physeq3 = subset_samples(Exp2.physeq3, day %in% c("1", "15", "57"))
 row_sums <- rowSums(otu_table(Exp2.tubes.nomix.physeq3))
 nonzero_rows <- row_sums != 0
-Exp2.tubes.nomix.physeq3 <- prune_taxa(nonzero_rows, Exp2.tubes.nomix.physeq3)#51 taxa and 4 samples
+Exp2.tubes.nomix.physeq3 <- prune_taxa(nonzero_rows, Exp2.tubes.nomix.physeq3)#991 taxa and 144 samples
 
 ####  dbRDA BETA DIVERSITY ####
 ## Calculate weighted Unifrac distance
@@ -419,6 +424,10 @@ tubes.nomix.meta$ph <- factor(tubes.nomix.meta$ph, levels = c(5.6, 4, 3))
 tubes.nomix.meta$food <- factor(tubes.nomix.meta$food, levels = c(3, 6))
 tubes.nomix.meta$temperature <- factor(tubes.nomix.meta$temperature, levels = c(22,37))
 tubes.nomix.meta$day <- as.numeric(tubes.nomix.meta$day)
+
+dbrda_beta <- dbrda(as.dist(wu.dist.16s.tubes) ~ temperature*ph*food+ Condition(sample_id),
+                    data = tubes.nomix.meta,
+                    distance = "NULL")
 
 dbrda_beta <- dbrda(as.dist(wu.dist.16s.tubes) ~ temperature*ph*food+ day + Condition(sample_id),
                    data = tubes.nomix.meta,
@@ -473,6 +482,74 @@ ggplot(data = sites_beta_meta, aes(x = dbRDA1, y = dbRDA2, color = food, alpha=d
             hjust = 0, vjust = 0, inherit.aes = FALSE)+ theme_classic()+scale_alpha_discrete(range = c(1,.7))+
   theme(legend.title=element_blank())
 
+#### BETA DISPERSION ####
+Exp2.DAY57.nomix.physeq3 = subset_samples(Exp2.physeq3, day %in% c("57"))
+row_sums <- rowSums(otu_table(Exp2.DAY57.nomix.physeq3))
+nonzero_rows <- row_sums != 0
+Exp2.DAY57.nomix.physeq3 <- prune_taxa(nonzero_rows, Exp2.DAY57.nomix.physeq3)
+
+wu.dist.16s.DAY57 <- phyloseq::distance(Exp2.DAY57.nomix.physeq3, method="wunifrac")
+DAY57.nomix.meta <- data.frame(sample_data(Exp2.DAY57.nomix.physeq3))
+DAY57.nomix.meta$sample_id <- as.numeric(DAY57.nomix.meta$sample_id)
+DAY57.nomix.meta$ph <- factor(DAY57.nomix.meta$ph, levels = c(5.6, 4, 3))
+DAY57.nomix.meta$food <- factor(DAY57.nomix.meta$food, levels = c(3, 6))
+DAY57.nomix.meta$temperature <- factor(DAY57.nomix.meta$temperature, levels = c(22,37))
+DAY57.nomix.meta$day <- as.numeric(DAY57.nomix.meta$day)
+
+dispersion_temp <- betadisper(as.dist(wu.dist.16s.DAY57), DAY57.nomix.meta$temperature)
+dispersion_ph <- betadisper(as.dist(wu.dist.16s.DAY57), DAY57.nomix.meta$ph)
+dispersion_food <- betadisper(as.dist(wu.dist.16s.DAY57), DAY57.nomix.meta$food)
+
+aov_temp<- anova(dispersion_temp)
+#Response: Distances
+#Df  Sum Sq  Mean Sq F value  Pr(>F)  
+#Groups     1 0.16967 0.169667  6.1057 0.01724 *
+#  Residuals 46 1.27826 0.02778
+
+aov_ph<- anova(dispersion_ph)
+#Analysis of Variance Table
+#Response: Distances
+#Df  Sum Sq  Mean Sq F value Pr(>F)
+#Groups     2 0.08316 0.041578  1.1707 0.3194
+#Residuals 45 1.59813 0.035514  
+TukeyHSD(dispersion_ph)
+
+
+aov_food<- anova(dispersion_food)
+#Response: Distances
+#Df  Sum Sq Mean Sq F value    Pr(>F)    
+#Groups     1 0.35000 0.35000  18.662 8.251e-05 ***
+#  Residuals 46 0.86271 0.01875
+
+DAY57.nomix.meta$interaction <- interaction(DAY57.nomix.meta$temperature, 
+                                            DAY57.nomix.meta$ph, 
+                                            DAY57.nomix.meta$food)
+
+dispersion_interaction <- betadisper(as.dist(wu.dist.16s.DAY57), DAY57.nomix.meta$interaction)
+aov_interaction<- anova(dispersion_interaction)
+
+TukeyHSD(dispersion_interaction)
+
+boxplot(dispersion_temp)
+boxplot(dispersion_ph)
+boxplot(dispersion_food)
+boxplot(dispersion_interaction)
+
+#just stress vs control interaction
+meta_sub <- subset(DAY57.nomix.meta, 
+                   (temperature == 37 & food == 6) | 
+                     (temperature == 22 & food == 3))
+
+samples_keep <- meta_sub$sample_id
+dist_mat <- as.matrix(wu.dist.16s.DAY57)
+dist_sub <- as.dist(dist_mat[samples_keep, samples_keep])
+meta_sub$group <- interaction(meta_sub$temperature, meta_sub$food)
+
+disp <- betadisper(dist_sub, meta_sub$group)
+aov_disp <- anova(disp)
+boxplot(disp)
+
+
 #### Mantel Test ####
 Exp2.tubes.physeq3_noNA = subset_samples(Exp2.tubes.nomix.physeq3, chitinase != "NA")
 Exp2.tubes.physeq3_noNA = subset_samples(Exp2.tubes.physeq3_noNA, protease != "NA")
@@ -497,7 +574,7 @@ prot.wu.man
 #Mantel statistic r: 0.1225
 #Significance: 0.006
 
-#divide up the chit and prot mantel to extreme and normal like for ecoplate
+#divide up the chit and prot mantel to extreme and Control like for ecoplate
 meta_en_ht<- subset(meta_mantel, temperature %in% c("37"))
 meta_en_lt<- subset(meta_mantel, temperature %in% c("22"))
 meta_en_ph3<- subset(meta_mantel, ph %in% c("3"))
@@ -692,7 +769,7 @@ length(unique(tax_table_df$Phylum))
 
 tree_data <- fortify(treemix)
 tree_data <- merge(tree_data, tax_table_df, by.x = "label", by.y = "row.names", all.x = TRUE)
-newasvtaxnames <- read.csv("exported-files/taxonomy_NEW_ASV.csv", header=TRUE)
+newasvtaxnames <- read.csv("metabarcoding_data/taxonomy_NEW_ASV.csv", header=TRUE)
 colnames(tree_data)[1] <- "Feature.ID"
 tree_data_asvnames <- dplyr::left_join(tree_data, newasvtaxnames, by="Feature.ID")
 
@@ -854,7 +931,7 @@ ggplot(posteriorpd, aes(x = parameter, shape=nonzero)) +
 #### SES MPD ####
 phydist <- cophenetic(tree)
 #SESMPD <- ses.mpd(com, phydist, null.model = "taxa.labels",
-                          abundance.weighted = TRUE, runs = 999)
+#                          abundance.weighted = TRUE, runs = 999)
 #saveRDS(SESMPD, "RDS/ses.mpd.resultall.RDS")
 SESMPD <- readRDS("RDS/ses.mpd.resultall.RDS")
 
@@ -886,8 +963,6 @@ count_greater_than_1.98 <- sum(abs(SESMPDday57$mpd.obs.z) > 1.98)
 total_numbers <- length(SESMPDday57$mpd.obs.z)
 (count_greater_than_1.98 / total_numbers) * 100
 
-#12.5 percent
-
 stat_mpd <- SESMPDday57 %>% group_by(treatment_combo) %>% 
   mutate(mean_mpd =mean(mpd.obs.z))
 
@@ -913,10 +988,6 @@ mpdsummary_df <- as.data.frame(mpdsum$fixed)
 #temp*food
 ((mpdsummary_df[6,1]) / abs(mpdsummary_df[1,1]))*100
 ((mpdsummary_df[6,1]+ mpdsummary_df[2,1]+mpdsummary_df[3,1]) / abs(mpdsummary_df[1,1]))*100
-
-
-
-
 
 
 mpd.pred <- ggpredict(mpd_model, c("food", "temperature", "ph"))
@@ -1400,7 +1471,7 @@ ggplot(food.filt.melt, aes(x = variable, y = newname2, fill = value)) +
   xlab("")+ ylab("")
 
 #### RELATIVE ABUNDANCE PLOTS TUBES ####
-newasvRA<- read.csv("exported-files/taxonomy_NEW_ASV.csv", header=TRUE)
+newasvRA<- read.csv("metabarcoding_data/taxonomy_NEW_ASV.csv", header=TRUE)
 newasv <- newasvRA$ASV
 newasvRA <- parse_taxonomy(newasvRA)
 newasvRA <- cbind(newasvRA,newasv )
@@ -1934,8 +2005,8 @@ data_lt <- data.frame(asv_dist_vectorlt = asv_dist_vectorlt, eco_dist_vectorlt =
 ggplot(data_lt, aes(x = asv_dist_vectorlt, y = eco_dist_vectorlt)) +
   geom_point(col="#1f5776") +xlim(c(0,.82))+ylim(c(0,.82))+theme_classic()+
   geom_smooth(method = "lm", col = "black") +
-  labs( x = "Normal Temperature Weighted UniFrac Dissimilarity\n(16S Community Composition)",
-        y = "Normal Temperature Bray-Curtis Dissimilarity\n(EcoPlate Carbon Substrate Use)")
+  labs( x = "Control Temperature Weighted UniFrac Dissimilarity\n(16S Community Composition)",
+        y = "Control Temperature Bray-Curtis Dissimilarity\n(EcoPlate Carbon Substrate Use)")
 
 
 mantel_ph3 <- mantel(asv_dist_ph3,eco_dist_ph3, method = "spearman", permutations=999)
@@ -1944,11 +2015,35 @@ mantel_ph3
 #Significance: 0.001
 plot(asv_dist_ph3,eco_dist_ph3)
 
+asv_dist_vectorph3 <- as.vector(asv_dist_ph3)
+eco_dist_vectorph3 <- as.vector(eco_dist_ph3)
+data_ph3 <- data.frame(asv_dist_vectorph3 = asv_dist_vectorph3, eco_dist_vectorph3 = eco_dist_vectorph3)
+
+## Figure S7 ##
+ggplot(data_ph3, aes(x = asv_dist_vectorph3, y = eco_dist_vectorph3)) +
+  geom_point(col="#CA64A3") +xlim(c(0,.82))+ylim(c(0,.82))+theme_classic()+
+  geom_smooth(method = "lm", col = "black") +
+  labs( x = "pH 3.0 Weighted UniFrac Dissimilarity\n(16S Community Composition)",
+        y = "pH 3.0 Bray-Curtis Dissimilarity\n(EcoPlate Carbon Substrate Use)")
+
+
 mantel_ph4 <- mantel(asv_dist_ph4,eco_dist_ph4, method = "spearman", permutations=999)
 mantel_ph4
 #Mantel statistic r: 0.4423  -1 strong negative, +1 strong positive, 0 none
 #Significance: 0.001
 plot(asv_dist_ph4,eco_dist_ph4)
+
+asv_dist_vectorph4 <- as.vector(asv_dist_ph4)
+eco_dist_vectorph4 <- as.vector(eco_dist_ph4)
+data_ph4 <- data.frame(asv_dist_vectorph4 = asv_dist_vectorph4, eco_dist_vectorph4 = eco_dist_vectorph4)
+
+## Figure S7 ##
+ggplot(data_ph4, aes(x = asv_dist_vectorph4, y = eco_dist_vectorph4)) +
+  geom_point(col="#9A4EAE") +xlim(c(0,.82))+ylim(c(0,.82))+theme_classic()+
+  geom_smooth(method = "lm", col = "black") +
+  labs( x = "pH 4.0 Weighted UniFrac Dissimilarity\n(16S Community Composition)",
+        y = "pH 4.0 Bray-Curtis Dissimilarity\n(EcoPlate Carbon Substrate Use)")
+
 
 mantel_ph5.6 <- mantel(asv_dist_ph5.6,eco_dist_ph5.6, method = "spearman", permutations=999)
 mantel_ph5.6
@@ -1956,17 +2051,58 @@ mantel_ph5.6
 #Significance: 0.001
 plot(asv_dist_ph5.6,eco_dist_ph5.6)
 
+asv_dist_vectorph5.6 <- as.vector(asv_dist_ph5.6)
+eco_dist_vectorph5.6 <- as.vector(eco_dist_ph5.6)
+data_ph5.6 <- data.frame(asv_dist_vectorph5.6 = asv_dist_vectorph5.6, eco_dist_vectorph5.6 = eco_dist_vectorph5.6)
+
+## Figure S7 ##
+ggplot(data_ph5.6, aes(x = asv_dist_vectorph5.6, y = eco_dist_vectorph5.6)) +
+  geom_point(col="#301934") +xlim(c(0,.82))+ylim(c(0,.82))+theme_classic()+
+  geom_smooth(method = "lm", col = "black") +
+  labs( x = "Control pH Weighted UniFrac Dissimilarity\n(16S Community Composition)",
+        y = "Control pH Bray-Curtis Dissimilarity\n(EcoPlate Carbon Substrate Use)")
+
+
+
 mantel_food3 <- mantel(asv_dist_food3,eco_dist_food3, method = "spearman", permutations=999)
 mantel_food3
 #Mantel statistic r: 0.2626  -1 strong negative, +1 strong positive, 0 none
 #Significance: 0.003
 plot(asv_dist_food3,eco_dist_food3)
 
+
+asv_dist_vectorfood3 <- as.vector(asv_dist_food3)
+eco_dist_vectorfood3 <- as.vector(eco_dist_food3)
+data_food3 <- data.frame(asv_dist_vectorfood3 = asv_dist_vectorfood3, eco_dist_vectorfood3 = eco_dist_vectorfood3)
+
+## Figure S7 ##
+ggplot(data_food3, aes(x = asv_dist_vectorfood3, y = eco_dist_vectorfood3)) +
+  geom_point(col="#90ee90") +xlim(c(0,.82))+ylim(c(0,.82))+theme_classic()+
+  geom_smooth(method = "lm", col = "black") +
+  labs( x = "Control Food Weighted UniFrac Dissimilarity\n(16S Community Composition)",
+        y = "Control Food Bray-Curtis Dissimilarity\n(EcoPlate Carbon Substrate Use)")
+
+
 mantel_food6 <- mantel(asv_dist_food6,eco_dist_food6, method = "spearman", permutations=999)
 mantel_food6
 #Mantel statistic r: 0.3882  -1 strong negative, +1 strong positive, 0 none
 #Significance: 0.001
 plot(asv_dist_food6,eco_dist_food6)
+
+asv_dist_vectorfood6 <- as.vector(asv_dist_food6)
+eco_dist_vectorfood6 <- as.vector(eco_dist_food6)
+data_food6 <- data.frame(asv_dist_vectorfood6 = asv_dist_vectorfood6, eco_dist_vectorfood6 = eco_dist_vectorfood6)
+
+## Figure S7 ##
+ggplot(data_food6, aes(x = asv_dist_vectorfood6, y = eco_dist_vectorfood6)) +
+  geom_point(col="#228822") +xlim(c(0,.82))+ylim(c(0,.82))+theme_classic()+
+  geom_smooth(method = "lm", col = "black") +
+  labs( x = "High Food Weighted UniFrac Dissimilarity\n(16S Community Composition)",
+        y = "High Food Bray-Curtis Dissimilarity\n(EcoPlate Carbon Substrate Use)")
+
+
+
+
 
 
 
@@ -2437,3 +2573,144 @@ ggplot(posteriorresp, aes(x = parameter, shape=nonzero)) +
   scale_shape_manual(values=c(17, 19), labels=c("95% CI does\nnot contain zero", "95% CI\ncontains zero"))+
   coord_flip() +xlab(NULL) + ylab("Estimated effect on Respiration")+ theme(text = element_text(color = "black", size = 16))+
   theme(panel.background = element_rect(fill = "white", colour = "black"))+theme(legend.position="none")
+
+
+
+#### pH over time ####
+
+ggplot(md16s, aes(x=ph, y=ph_final, color=as.factor(temperature), shape=as.factor(food))) + 
+  geom_point()+scale_color_manual(values=c("#1f5776", "#c83126"))+theme_classic()
+
+
+#### VENN DIAGRAM ####
+library(phyloseq)
+library(VennDiagram)
+library(pheatmap)
+library(grid)
+
+#### VENN DIAGRAM ####
+sample_data(Exp2.physeq3)$day <- as.numeric(as.character(sample_data(Exp2.physeq3)$day))
+
+# Subset to Day 57
+Exp2_day57 <- subset_samples(Exp2.physeq3, day == 57)
+
+
+get_present_asvs <- function(ps_obj) {
+  pruned <- prune_taxa(taxa_sums(ps_obj) > 0, ps_obj)
+  taxa_names(pruned)
+}
+
+asvs_temp_22 <- get_present_asvs(subset_samples(Exp2_day57, temperature == 22))
+asvs_temp_37 <- get_present_asvs(subset_samples(Exp2_day57, temperature == 37))
+asvs_food_3  <- get_present_asvs(subset_samples(Exp2_day57, food == 3))
+asvs_food_6  <- get_present_asvs(subset_samples(Exp2_day57, food == 6))
+asvs_ph_3    <- get_present_asvs(subset_samples(Exp2_day57, ph == 3))
+asvs_ph_4    <- get_present_asvs(subset_samples(Exp2_day57, ph == 4))
+asvs_ph_5_6  <- get_present_asvs(subset_samples(Exp2_day57, ph == 5.6))
+
+venn_colors <- c(
+  "#1f5776", "#c83126"
+)
+
+venn.plot <- venn.diagram(
+  x = list(
+    Control_Temp = asvs_temp_22,
+    Temp_37C = asvs_temp_37),
+  filename = NULL,  # Don't save it as a file, just display
+  fill = venn_colors,  # Now matches the number of sets
+  alpha = 0.5,
+  cex = 1.2,
+  cat.cex = 1.1,
+  main = "Venn Diagram of ASV Overlap by Temperature"
+)
+
+grid.newpage()
+grid.draw(venn.plot)
+
+
+venn_colors <- c(
+  "#90ee90", "#228822"
+)
+
+venn.plot <- venn.diagram(
+  x = list(
+    Control_Food = asvs_food_3,
+    High_Food = asvs_food_6),
+  filename = NULL,  # Don't save it as a file, just display
+  fill = venn_colors,  # Now matches the number of sets
+  alpha = 0.5,
+  cex = 1.2,
+  cat.cex = 1.1,
+  main = "Venn Diagram of ASV Overlap by Food"
+)
+
+grid.newpage()
+grid.draw(venn.plot)
+
+
+venn_colors <- c( "#CA64A3",  "#9A4EAE",  "#301934")
+# Create the Venn diagram for ASV overlap by temperature, food, and pH conditions
+venn.plot <- venn.diagram(
+  x = list(
+    pH_3.0 = asvs_ph_3,
+    pH_4.0 = asvs_ph_4, 
+    Control_pH = asvs_ph_5_6),
+  filename = NULL,  # Don't save it as a file, just display
+  fill = venn_colors,  # Now matches the number of sets
+  alpha = 0.5,
+  cex = 1.2,
+  cat.cex = 1.1,
+  main = "Venn Diagram of ASV Overlap by pH"
+)
+
+grid.newpage()
+grid.draw(venn.plot)
+
+
+
+#### HEATMAP ####
+
+top_taxa <- names(sort(taxa_sums(Exp2_day57), decreasing = TRUE))[1:50]
+ps_top <- prune_taxa(top_taxa, Exp2_day57)
+
+abund_mat <- otu_table(ps_top)
+if (!taxa_are_rows(ps_top)) {
+  abund_mat <- t(abund_mat)
+}
+abund_mat <- as.matrix(abund_mat)
+abund_mat <- abund_mat[rowSums(abund_mat) > 0, ]
+log_abund_mat <- log1p(abund_mat)
+matching_names <- match(rownames(log_abund_mat), rownames(newasvRA))
+
+missing_asvs <- setdiff(rownames(log_abund_mat), rownames(newasvRA))
+if(length(missing_asvs) > 0) {
+  cat("Missing ASVs from taxonomy data: ", missing_asvs, "\n")
+} else {
+  rownames(log_abund_mat) <- newasvRA$newname2[matching_names]
+}
+
+
+annotation <- as(sample_data(ps_top), "data.frame")
+annotation_filt <- annotation[, c("food", "ph", "temperature")]
+annotation_filt$food <- as.factor(annotation_filt$food)
+annotation_filt$ph <- as.factor(annotation_filt$ph)
+annotation_filt$temperature <- as.factor(annotation_filt$temperature)
+
+sample_order <- with(annotation_filt, order(temperature, ph, food))
+ordered_log_abund_mat <- log_abund_mat[, sample_order]
+ordered_annotation <- annotation_filt[sample_order, ]
+
+annotation_colors <- list(
+  temperature = c("22" = "#1f5776", "37" = "#c83126"),
+  ph = c("3" = "#CA64A3", "4" = "#9A4EAE", "5.6" = "#301934"),  # Adjust to match your pH values
+  food = c("3" = "#90ee90", "6" = "#228822")
+)
+
+abundance_colors <- colorRampPalette(c("white", "black"))(100)
+
+pheatmap(ordered_log_abund_mat,
+         annotation_col = ordered_annotation,
+         annotation_colors = annotation_colors,
+         color = abundance_colors,  # White to black color scale
+         cluster_rows = TRUE, cluster_cols = FALSE,
+         scale = "none")

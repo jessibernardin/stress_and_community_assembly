@@ -1,0 +1,23 @@
+INFO [2025-04-29 17:13:07] $x
+INFO [2025-04-29 17:13:07] list(Temp22 = asvs_temp_22, Temp37 = asvs_temp_37, Food3 = asvs_food_3, 
+INFO [2025-04-29 17:13:07]     Food6 = asvs_food_6, pH3 = asvs_ph_3, pH4 = asvs_ph_4, pH5_6 = asvs_ph_5_6)
+INFO [2025-04-29 17:13:07] 
+INFO [2025-04-29 17:13:07] $filename
+INFO [2025-04-29 17:13:07] NULL
+INFO [2025-04-29 17:13:07] 
+INFO [2025-04-29 17:13:07] $fill
+INFO [2025-04-29 17:13:07] venn_colors
+INFO [2025-04-29 17:13:07] 
+INFO [2025-04-29 17:13:07] $alpha
+INFO [2025-04-29 17:13:07] [1] 0.5
+INFO [2025-04-29 17:13:07] 
+INFO [2025-04-29 17:13:07] $cex
+INFO [2025-04-29 17:13:07] [1] 1.2
+INFO [2025-04-29 17:13:07] 
+INFO [2025-04-29 17:13:07] $cat.cex
+INFO [2025-04-29 17:13:07] [1] 1.1
+INFO [2025-04-29 17:13:07] 
+INFO [2025-04-29 17:13:07] $main
+INFO [2025-04-29 17:13:07] [1] "Venn Diagram of ASV Overlap by Temperature, Food, and pH Conditions"
+INFO [2025-04-29 17:13:07] 
+ERROR [2025-04-29 17:13:07] Incorrect number of elements.
